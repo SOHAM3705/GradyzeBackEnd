@@ -52,8 +52,7 @@ web.get('*', (req, res) => {
   res.sendFile(path.join(reactBuildPath, 'index.html'));
 });
 
-// Start the server
 const PORT = process.env.PORT || 5173;
-web.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });
