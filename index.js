@@ -34,7 +34,7 @@ connectDB();
 // Middleware to parse JSON
 web.use(express.json());
 web.use(cors({
-  origin: 'http://localhost:5173', // React app running on localhost:5173
+  origin: 'https://gradyzefrontend.onrender.com', // React app running on localhost:5173
   methods: ['GET', 'POST'],
   credentials: true,
 }));
