@@ -4,8 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const adminRoutes = require('./api/admin/adminSignUpRoute'); // Assuming you create the sign-up route
 const loginRoute = require('./api/admin/adminLoginRoute'); 
-const authRoutes = require("./routes/authRoutes");// Assuming you create the login route
-const passwordResetRoutes = require("./api/admin/adminpasswordResetRoutes"); // Assuming you create the password reset route
+const authRoutes = require("./middleware/auth");// Assuming you create the login route
+const passwordResetRoutes = require("./api/Password/passwordResetRoutes"); // Assuming you create the password reset route
 
 const web = express();
 
@@ -44,7 +44,7 @@ web.use(cors({
 // Routes
 web.use('/api/admin', adminRoutes);
 web.use('/api/admin', loginRoute);
-web.use("/api/admin", passwordResetRoutes);
+web.use("/api/password", passwordResetRoutes);
 web.use("/api/auth", authRoutes);
 
 // Serve static files from React's build folder
