@@ -3,7 +3,9 @@ const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const adminRoutes = require('./api/admin/adminSignUpRoute'); // Assuming you create the sign-up route
-const loginRoute = require('./api/admin/adminLoginRoute'); // Assuming you create the login route
+const loginRoute = require('./api/admin/adminLoginRoute'); 
+const authRoutes = require("./routes/authRoutes");// Assuming you create the login route
+const passwordResetRoutes = require("./api/admin/adminpasswordResetRoutes"); // Assuming you create the password reset route
 
 const web = express();
 
@@ -34,7 +36,7 @@ connectDB();
 // Middleware to parse JSON
 web.use(express.json());
 web.use(cors({
-  origin: 'https://gradyzefrontend.onrender.com', // React app running on localhost:5173
+  origin: 'https://gradyzefrontend.onrender.com', 
   methods: ['GET', 'POST'],
   credentials: true,
 }));
@@ -42,6 +44,8 @@ web.use(cors({
 // Routes
 web.use('/api/admin', adminRoutes);
 web.use('/api/admin', loginRoute);
+web.use("/api/admin", passwordResetRoutes);
+web.use("/api/auth", authRoutes);
 
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
