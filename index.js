@@ -35,15 +35,24 @@ connectDB();
 
 // Middleware to parse JSON
 web.use(express.json());
-web.use(
+// Allow requests from specific origins
+const allowedOrigins = [
+  "https://gradyze.com",
+  "https://gradyzefrontend.onrender.com",
+];
+
+app.use(
   cors({
-    origin: "https://gradyzefrontend.onrender.com", // Your frontend URL
-    methods: "GET,POST,PUT,DELETE",
-    allowedHeaders: "Content-Type,Authorization",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
-
 // Routes
 web.use('/api/admin', adminRoutes);
 web.use('/api/admin', loginRoute);
