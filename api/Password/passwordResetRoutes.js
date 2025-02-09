@@ -3,8 +3,12 @@ const router = express.Router();
 const User = require("../../models/useradmin"); // Adjust path based on your structure
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
+const bcrypt = require("bcrypt"); // ✅ Added bcrypt import for hashing
 const { resetPasswordEmail } = require("../../utils/emailTemplates"); // Import email template
 
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; // ✅ Ensure frontend URL is defined
+
+// ✅ Route to verify email and send reset link
 router.post("/verify-email", async (req, res) => {
     const { email } = req.body;
 
@@ -12,43 +16,44 @@ router.post("/verify-email", async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ message: "Email not found" });
 
-        // Generate token
+        // Generate token (expires in 30 minutes)
         const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
-        const resetLink = `${process.env.FRONTEND_URL}/change-password?token=${token}`;
+        const resetLink = `${FRONTEND_URL}/change-password?token=${token}`;
 
         // Generate email content
         const emailContent = resetPasswordEmail(user.name, resetLink);
 
         // Send email via Resend API
         await axios.post("https://api.resend.com/emails", {
-            from: "support@gradyze.com",  // Change to your verified email
+            from: "support@gradyze.com", // ✅ Ensure this email is verified in Resend
             to: email,
             subject: "Reset Your Password",
             html: emailContent,
         }, {
             headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
         });
-        
 
-        res.json({ message: "Verification email sent" });
+        res.json({ message: "Verification email sent successfully" });
     } catch (error) {
-        console.error(error);
+        console.error("Error in verify-email:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
-// Change Password
+// ✅ Route to change password
 router.post("/change-password", async (req, res) => {
     const { token, newPassword, confirmPassword } = req.body;
 
-    if (newPassword !== confirmPassword) return res.status(400).json({ message: "Passwords do not match" });
+    if (newPassword !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+    }
 
     try {
-        // Verify token
+        // Verify JWT token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findOne({ email: decoded.email });
 
-        if (!user) return res.status(400).json({ message: "Invalid token" });
+        if (!user) return res.status(400).json({ message: "Invalid or expired token" });
 
         // Hash and update password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -57,7 +62,13 @@ router.post("/change-password", async (req, res) => {
 
         res.json({ message: "Password updated successfully" });
     } catch (error) {
-        console.error(error);
+        console.error("Error in change-password:", error);
+
+        // ✅ Handle expired or invalid token error
+        if (error.name === "TokenExpiredError") {
+            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
+        }
+
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
