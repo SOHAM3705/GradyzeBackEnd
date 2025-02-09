@@ -35,11 +35,14 @@ connectDB();
 
 // Middleware to parse JSON
 web.use(express.json());
-web.use(cors({
-  origin: 'https://gradyzefrontend.onrender.com', 
-  methods: ['GET', 'POST'],
-  credentials: true,
-}));
+web.use(
+  cors({
+    origin: "https://gradyzefrontend.onrender.com", // Your frontend URL
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+    credentials: true,
+  })
+);
 
 // Routes
 web.use('/api/admin', adminRoutes);
