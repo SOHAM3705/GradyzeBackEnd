@@ -21,13 +21,14 @@ router.post("/verify-email", async (req, res) => {
 
         // Send email via Resend API
         await axios.post("https://api.resend.com/emails", {
-            from: "onboarding@resend.dev",
+            from: "support@gradyze.com",  // Change to your verified email
             to: email,
             subject: "Reset Your Password",
             html: emailContent,
         }, {
             headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
         });
+        
 
         res.json({ message: "Verification email sent" });
     } catch (error) {
