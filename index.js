@@ -41,7 +41,7 @@ const allowedOrigins = [
   "https://gradyzefrontend.onrender.com",
 ];
 
-app.use(
+web.use(
   cors({
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
