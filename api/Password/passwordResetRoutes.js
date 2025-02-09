@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../../models/useradmin"); // Adjust path based on your structure
+const Admin = require("../../models/useradmin"); // Adjust path based on your structure
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const bcrypt = require("bcrypt"); // ✅ Added bcrypt import for hashing
@@ -13,7 +13,7 @@ router.post("/verify-email", async (req, res) => {
     const { email } = req.body;
 
     try {
-        const user = await User.findOne({ email });
+        const user = await Admin.findOne({ email });
         if (!user) return res.status(400).json({ message: "Email not found" });
 
         // Generate token (expires in 30 minutes)
@@ -51,7 +51,7 @@ router.post("/change-password", async (req, res) => {
     try {
         // Verify JWT token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findOne({ email: decoded.email });
+        const user = await Admin.findOne({ email: decoded.email });
 
         if (!user) return res.status(400).json({ message: "Invalid or expired token" });
 

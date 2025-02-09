@@ -21,6 +21,7 @@ const connectDB = async () => {
     await mongoose.connect(MONGO_URI, {
      
       dbName: 'AdminDB',  // Ensure connection to the 'admin' database
+      useNewUrlParser: true, useUnifiedTopology: true,
     });
     console.log(`🟢 MongoDB Connected to: ${mongoose.connection.name}`);
   } catch (error) {
