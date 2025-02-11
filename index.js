@@ -50,10 +50,13 @@ web.use(
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.error("❌ CORS Blocked:", origin);
+        return callback(new Error("CORS Policy: Not allowed by CORS"), false);
       }
     },
-    credentials: true,
+    credentials: true, // ✅ Allow cookies & authentication headers
+    methods: "GET,POST,PUT,DELETE,OPTIONS", // ✅ Allow necessary HTTP methods
+    allowedHeaders: "Content-Type,Authorization", // ✅ Allow important headers
   })
 );
 // Routes
