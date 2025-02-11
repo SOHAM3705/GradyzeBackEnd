@@ -5,6 +5,8 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const bcrypt = require("bcrypt"); // Import bcrypt for hashing passwords
 const { resetPasswordEmail } = require("../../utils/emailTemplates"); // Import email template
+const mongoose = require("mongoose");
+
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; // Ensure frontend URL is defined
 
@@ -51,26 +53,21 @@ router.post("/change-password", async (req, res) => {
     try {
         // Verify JWT token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log("Decoded Email:", decoded.email);
-
-        // Find user by email
         const user = await Admin.findOne({ email: decoded.email });
 
-        if (!user) {
-            console.error("User Not Found:", decoded.email);
-            return res.status(400).json({ message: "Invalid or expired token" });
-        }
+        if (!user) return res.status(400).json({ message: "Invalid or expired token" });
 
-        // Hash new password
+        // Hash and update password using findOneAndUpdate
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         console.log("Hashed Password:", hashedPassword);
 
-        // Update password in database
-        user.password = hashedPassword;
-        await user.save();
+        const updatedUser = await Admin.findOneAndUpdate(
+            { email: decoded.email },
+            { $set: { password: hashedPassword } },
+            { new: true }
+        );
 
-        console.log("Password Updated Successfully:", user);
-
+        console.log("Updated User:", updatedUser);
         res.json({ message: "Password updated successfully" });
     } catch (error) {
         console.error("Error in change-password:", error);
@@ -82,5 +79,6 @@ router.post("/change-password", async (req, res) => {
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
+
 
 module.exports = router;
