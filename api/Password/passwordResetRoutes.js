@@ -18,7 +18,7 @@ router.post("/verify-email", async (req, res) => {
 
         // Generate token (expires in 30 minutes)
         const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
-        const resetLink = `${FRONTEND_URL}/change-password?token=${token}`;
+        const resetLink = `https://gradyze.com/change-password?token=${token}`;
 
         // Generate email content
         const emailContent = resetPasswordEmail(user.name, resetLink);
@@ -40,7 +40,6 @@ router.post("/verify-email", async (req, res) => {
     }
 });
 
-// ✅ Route to change password
 router.post("/change-password", async (req, res) => {
     const { token, newPassword, confirmPassword } = req.body;
 
@@ -49,33 +48,31 @@ router.post("/change-password", async (req, res) => {
     }
 
     try {
-        // Verify JWT token
+        // ✅ Verify JWT token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await Admin.findOne({ email: decoded.email }).select("+password");
+        console.log("🔑 Decoded Email:", decoded.email);
+
+        // ✅ Find user by email
+        const user = await Admin.findOne({ email: decoded.email });
 
         if (!user) {
+            console.error("❌ User Not Found:", decoded.email);
             return res.status(400).json({ message: "Invalid or expired token" });
         }
 
-        // Hash new password
+        // ✅ Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        console.log("🔹 Hashed Password:", hashedPassword);
+        console.log("🔐 Hashed Password:", hashedPassword);
 
-        // Update and save new password
+        // ✅ Update password in database
         user.password = hashedPassword;
-        user.markModified("password"); // ✅ Ensure Mongoose detects changes
+        await user.save();
 
-        try {
-            await user.save();
-            console.log("✅ Password updated successfully.");
-            res.json({ message: "Password updated successfully" });
-        } catch (error) {
-            console.error("🔴 Error saving password:", error);
-            return res.status(500).json({ message: "Failed to update password" });
-        }
+        console.log("✅ Password Updated Successfully:", user);
 
+        res.json({ message: "Password updated successfully" });
     } catch (error) {
-        console.error("Error in change-password:", error);
+        console.error("❌ Error in change-password:", error);
 
         if (error.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
@@ -84,6 +81,7 @@ router.post("/change-password", async (req, res) => {
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
+
 
 
 module.exports = router;
