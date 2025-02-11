@@ -51,20 +51,32 @@ router.post("/change-password", async (req, res) => {
     try {
         // Verify JWT token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await Admin.findOne({ email: decoded.email });
+        const user = await Admin.findOne({ email: decoded.email }).select("+password");
 
-        if (!user) return res.status(400).json({ message: "Invalid or expired token" });
+        if (!user) {
+            return res.status(400).json({ message: "Invalid or expired token" });
+        }
 
-        // Hash and update password
+        // Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        user.password = hashedPassword;
-        await user.save();
+        console.log("🔹 Hashed Password:", hashedPassword);
 
-        res.json({ message: "Password updated successfully" });
+        // Update and save new password
+        user.password = hashedPassword;
+        user.markModified("password"); // ✅ Ensure Mongoose detects changes
+
+        try {
+            await user.save();
+            console.log("✅ Password updated successfully.");
+            res.json({ message: "Password updated successfully" });
+        } catch (error) {
+            console.error("🔴 Error saving password:", error);
+            return res.status(500).json({ message: "Failed to update password" });
+        }
+
     } catch (error) {
         console.error("Error in change-password:", error);
 
-        // ✅ Handle expired or invalid token error
         if (error.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
         }
@@ -72,5 +84,6 @@ router.post("/change-password", async (req, res) => {
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
+
 
 module.exports = router;

@@ -19,16 +19,18 @@ const MONGO_URI = process.env.MONGO_URI;
 const connectDB = async () => {
   try {
     await mongoose.connect(MONGO_URI, {
-     
-      dbName: 'AdminDB',  // Ensure connection to the 'admin' database
-      useNewUrlParser: true, useUnifiedTopology: true,
+      dbName: 'AdminDB', // Ensure connection to the 'AdminDB' database
     });
+
     console.log(`🟢 MongoDB Connected to: ${mongoose.connection.name}`);
   } catch (error) {
-    console.error("🔴 MongoDB Connection Error:", error);
+    console.error("🔴 MongoDB Connection Error:", error.message);
     process.exit(1);
   }
 };
+
+module.exports = connectDB;
+
 
 // Connect to MongoDB
 connectDB();
