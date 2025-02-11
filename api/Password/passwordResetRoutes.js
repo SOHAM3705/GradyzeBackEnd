@@ -7,7 +7,6 @@ const bcrypt = require("bcrypt"); // Import bcrypt for hashing passwords
 const { resetPasswordEmail } = require("../../utils/emailTemplates"); // Import email template
 const mongoose = require("mongoose");
 
-
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; // Ensure frontend URL is defined
 
 // Route to verify email and send reset link
@@ -36,8 +35,7 @@ router.post("/verify-email", async (req, res) => {
         });
 
         res.json({ message: "Verification email sent successfully" });
-    } catch (error) {
-        console.error("Error in verify-email:", error);
+    } catch {
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
@@ -70,8 +68,6 @@ router.post("/change-password", async (req, res) => {
 
         res.json({ message: "Password updated successfully" });
     } catch (error) {
-        console.error("Error in change-password:", error);
-
         if (error.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
         }
@@ -79,6 +75,5 @@ router.post("/change-password", async (req, res) => {
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
-
 
 module.exports = router;
