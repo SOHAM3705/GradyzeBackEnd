@@ -46,6 +46,7 @@ router.post("/verify-email", async (req, res) => {
 router.post("/change-password", async (req, res) => {
     const { token, newPassword, confirmPassword } = req.body;
 
+    // Check if passwords match
     if (newPassword !== confirmPassword) {
         return res.status(400).json({ message: "Passwords do not match" });
     }
@@ -55,19 +56,18 @@ router.post("/change-password", async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await Admin.findOne({ email: decoded.email });
 
-        if (!user) return res.status(400).json({ message: "Invalid or expired token" });
+        if (!user) {
+            return res.status(400).json({ message: "Invalid or expired token" });
+        }
 
-        // Hash and update password using findOneAndUpdate
+        // Hash and update password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        console.log("Hashed Password:", hashedPassword);
-
-        const updatedUser = await Admin.findOneAndUpdate(
+        await Admin.findOneAndUpdate(
             { email: decoded.email },
             { $set: { password: hashedPassword } },
             { new: true }
         );
 
-        console.log("Updated User:", updatedUser);
         res.json({ message: "Password updated successfully" });
     } catch (error) {
         console.error("Error in change-password:", error);
