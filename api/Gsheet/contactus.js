@@ -4,7 +4,7 @@ const router = express.Router();
 
 const CONTACT_FORM_URL = process.env.CONTACT_FORM_URL; // Get from .env file
 
-router.post("/contact", async (req, res) => {
+router.post("/contactus", async (req, res) => {
   const { name, email, subject, message } = req.body;
 
   if (!name || !email || !subject || !message) {
