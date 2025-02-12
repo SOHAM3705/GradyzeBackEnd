@@ -4,7 +4,7 @@ const router = express.Router();
 
 const FEEDBACK_FORM_URL = process.env.FEEDBACK_FORM_URL; // Get from .env file
 
-router.post("/feedback", async (req, res) => {
+router.post("/Adminfeedback", async (req, res) => {
   const { name, email, feedback, opinions } = req.body;
 
   if (!name || !email || !feedback || !opinions) {
