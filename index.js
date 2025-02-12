@@ -6,6 +6,8 @@ const adminRoutes = require('./api/admin/adminSignUpRoute'); // Assuming you cre
 const loginRoute = require('./api/admin/adminLoginRoute'); 
 const authRoutes = require("./middleware/auth");// Assuming you create the login route
 const passwordResetRoutes = require("./api/Password/passwordResetRoutes"); // Assuming you create the password reset route
+const contactus = require("./api/Gsheet/contactus"); // Assuming you create the contactus route
+const Adminfeedback = require("./api/Gsheet/feedback"); // Assuming you create the feedback route
 
 const web = express();
 
@@ -59,11 +61,14 @@ web.use(
     allowedHeaders: "Content-Type,Authorization", // ✅ Allow important headers
   })
 );
+
 // Routes
 web.use('/api/admin', adminRoutes);
 web.use('/api/admin', loginRoute);
 web.use("/api/password", passwordResetRoutes);
 web.use("/api/auth", authRoutes);
+web.use("/api/Gsheet", contactus);
+web.use("/api/Gsheet", Adminfeedback);
 
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
