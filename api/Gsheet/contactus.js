@@ -13,10 +13,8 @@ router.post("/contactus", async (req, res) => {
 
   try {
     await axios.post(CONTACT_FORM_URL, { name, email, subject, message });
-
-    res.status(200).json({ success: true, message: "Message stored in Google Sheets!" });
-  } catch (error) {
-    console.error("Error sending data to Google Sheets:", error);
+    res.status(200).json({ success: true, message: "" });
+  } catch {
     res.status(500).json({ success: false, error: "Failed to store message" });
   }
 });
