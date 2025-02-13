@@ -7,7 +7,7 @@ const loginRoute = require('./api/admin/adminLoginRoute');
 const authRoutes = require("./middleware/auth");// Assuming you create the login route
 const passwordResetRoutes = require("./api/Password/passwordResetRoutes"); // Assuming you create the password reset route
 const contactus = require("./api/Gsheet/contactus"); // Assuming you create the contactus route
-const Adminfeedback = require("./api/Gsheet/feedback"); // Assuming you create the feedback route
+const Adminfeedback = require("./api/Gsheet/Adminfeedback"); // Assuming you create the feedback route
 
 const web = express();
 
