@@ -19,7 +19,7 @@ router.post("/verify-email", async (req, res) => {
 
         // Generate reset token (expires in 30 minutes)
         const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
-        const resetLink = `${FRONTEND_URL}/change-password?token=${token}`;
+        const resetLink = `${FRONTEND_URL}/teacher-change-password?token=${token}`;
 
         // Email content
         const emailContent = resetPasswordEmail(teacher.name, resetLink);
