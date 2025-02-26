@@ -28,7 +28,7 @@ const mergeSubjects = (existingSubjects, newSubjects) => {
     return Array.from(subjectMap.values());
 };
 
-const emailContent = require("./newaccount"); // Import the email template function
+const emailContent = require("../../utils/newaccount"); // Import the email template function
 
 /** ✅ Function to Send Email via Resend API */
 const sendEmail = async (email, password, name) => {
