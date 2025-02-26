@@ -28,7 +28,6 @@ const mergeSubjects = (existingSubjects, newSubjects) => {
     return Array.from(subjectMap.values());
 };
 
-const axios = require("axios");
 const emailContent = require("./newaccount"); // Import the email template function
 
 /** ✅ Function to Send Email via Resend API */
