@@ -13,9 +13,11 @@ const teacherSchema = new mongoose.Schema({
   password: { type: String, required: true },
   department: { type: String, required: true },
   subjects: [subjectSchema], // Array of subjects the teacher teaches
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Link to Admin
   createdAt: { type: Date, default: Date.now },
 });
 
-// Explicitly set the collection name as "User"
+// Explicitly set the collection name as "teachers"
 module.exports = mongoose.model("Teacher", teacherSchema, "teachers");
+
 
