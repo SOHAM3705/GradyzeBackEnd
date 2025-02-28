@@ -95,7 +95,7 @@ router.post("/add", async (req, res) => {
   
 
 /** ✅ Remove Subject */
-router.post("/remove-subject", async (req, res) => {
+router.post("/remove-subject", auth, async (req, res) => {
     try {
         const { email, subjectName, year, semester, division } = req.body;
 
@@ -104,6 +104,12 @@ router.post("/remove-subject", async (req, res) => {
             return res.status(404).json({ message: "Teacher not found" });
         }
 
+        // ✅ Ensure subjects exist
+        if (!Array.isArray(teacher.subjects)) {
+            return res.status(500).json({ message: "Invalid subjects format in database" });
+        }
+
+        // ✅ Filter out the subject
         const updatedSubjects = teacher.subjects.filter(subject =>
             !(subject.name === subjectName &&
                 subject.year === year &&
@@ -124,6 +130,7 @@ router.post("/remove-subject", async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
 
 /** ✅ Fetch Assigned Subjects (Authenticated Teachers Only) */
 router.get("/subjects", authMiddleware, async (req, res) => {
