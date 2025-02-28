@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const axios = require("axios");
 const authMiddleware = require("../../middleware/auth");
+const auth = require("../../middleware/authmiddleware");
 
 dotenv.config(); // Load environment variables
 
@@ -86,7 +87,7 @@ router.post("/add", async (req, res) => {
       res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
   });
-  
+
 /** ✅ Remove Subject */
 router.post("/remove-subject", async (req, res) => {
     try {
@@ -194,12 +195,14 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
     }
 });
 
-// Route to fetch teachers list based on adminId
-router.get("/teacherslist", authMiddleware, async (req, res) => {
+router.get("/teacherslist", auth, async (req, res) => {
     try {
-      const adminId = req.user.id; // Assuming auth middleware sets req.user
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Unauthorized: No admin ID found" });
+      }
   
-      // Fetch teachers added by this admin
+      const adminId = req.user.id; // Ensure adminId is correctly extracted
+  
       const teachers = await Teacher.find({ adminId });
   
       if (!teachers || teachers.length === 0) {
@@ -208,10 +211,11 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
   
       res.status(200).json({ teachers });
     } catch (error) {
-      console.error("Error fetching teachers list:", error);
+      console.error("Error fetching teachers list:", error.message);
       res.status(500).json({ message: "Internal server error." });
     }
   });
+  
   
 
 module.exports = router;
