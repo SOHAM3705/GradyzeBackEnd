@@ -106,7 +106,7 @@ const emailContent = (name, email, password) => {
 <body>
     <div class="email-container">
         <div class="header">
-            <img src="https://gradyze.com/logo.png" alt="Gradyze Logo" class="logo">
+            <img src="https://gradyzefrontend.onrender.com/Logo.jpg" alt="Gradyze Logo" class="logo">
         </div>
         <div class="content">
             <div class="greeting">

@@ -51,42 +51,42 @@ const sendEmail = async (email, password, name) => {
 /** ✅ Add or Update Teacher */
 router.post("/add", async (req, res) => {
     try {
-        const { name, email, department, subjects, adminId } = req.body;
-
-        if (!name || !email || !department || !subjects || !adminId) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-
-        let existingTeacher = await Teacher.findOne({ email });
-
-        if (existingTeacher) {
-            existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
-            await existingTeacher.save();
-            return res.status(200).json({ message: "Subjects updated successfully" });
-        }
-
-        const randomPassword = crypto.randomBytes(6).toString("hex");
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
-
-        const newTeacher = new Teacher({
-            name,
-            email,
-            password: hashedPassword,
-            department,
-            subjects,
-            adminId,  // Ensure adminId is stored
-        });
-
-        await newTeacher.save();
-        await sendEmail(email, randomPassword, name);
-
-        res.status(201).json({ message: "Teacher added successfully, credentials sent via email" });
+      const { name, email, department, subjects, adminId } = req.body;
+  
+      if (!name || !email || !department || !subjects || !adminId) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+  
+      let existingTeacher = await Teacher.findOne({ email });
+  
+      if (existingTeacher) {
+        existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
+        await existingTeacher.save();
+        return res.status(200).json({ message: "Subjects updated successfully" });
+      }
+  
+      const randomPassword = crypto.randomBytes(6).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+  
+      const newTeacher = new Teacher({
+        name,
+        email,
+        password: hashedPassword,
+        department,
+        subjects,
+        adminId,  // ✅ Store adminId
+      });
+  
+      await newTeacher.save();
+      await sendEmail(email, randomPassword, name);
+  
+      res.status(201).json({ message: "Teacher added successfully, credentials sent via email" });
     } catch (error) {
-        console.error("Error in adding/updating teacher:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+      console.error("Error in adding/updating teacher:", error.message, error.stack);
+      res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
-});
-
+  });
+  
 /** ✅ Remove Subject */
 router.post("/remove-subject", async (req, res) => {
     try {
