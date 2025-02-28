@@ -48,9 +48,12 @@ const allowedOrigins = [
   "https://gradyzefrontend.onrender.com",
 ];
 
+// ✅ Configure CORS
 web.use(
   cors({
     origin: function (origin, callback) {
+      console.log("🌍 Incoming Request from:", origin || "Unknown Origin"); // Debugging Log
+
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -63,6 +66,14 @@ web.use(
     allowedHeaders: "Content-Type,Authorization", // ✅ Allow important headers
   })
 );
+
+// ✅ Handle Preflight Requests (OPTIONS)
+web.options("*", cors());
+
+// ✅ Sample route for testing
+web.get("/", (req, res) => {
+  res.send("CORS is configured properly!");
+});
 
 // Routes
 web.use('/api/admin', adminRoutes);
