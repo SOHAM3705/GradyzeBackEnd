@@ -195,7 +195,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 });
 
 // Route to fetch teachers list based on adminId
-router.get("/teacherslist", auth, async (req, res) => {
+router.get("/teacherslist", authMiddleware, async (req, res) => {
     try {
       const adminId = req.user.id; // Assuming auth middleware sets req.user
   
@@ -213,6 +213,5 @@ router.get("/teacherslist", auth, async (req, res) => {
     }
   });
   
-  module.exports = router;
 
 module.exports = router;
