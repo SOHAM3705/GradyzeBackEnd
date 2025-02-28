@@ -63,7 +63,7 @@ web.use(
     },
     credentials: true, // ✅ Allow cookies & authentication headers
     methods: "GET,POST,PUT,DELETE,OPTIONS", // ✅ Allow necessary HTTP methods
-    allowedHeaders: "Content-Type,Authorization", // ✅ Allow important headers
+    allowedHeaders: ["Content-Type","Authorization","X-Admin-ID"] // ✅ Allow important headers
   })
 );
 
