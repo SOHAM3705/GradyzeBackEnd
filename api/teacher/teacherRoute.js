@@ -48,45 +48,51 @@ const sendEmail = async (email, password, name) => {
         console.error("Error sending email:", error);
     }
 };
-
 /** ✅ Add or Update Teacher */
 router.post("/add", async (req, res) => {
     try {
       const { name, email, department, subjects, adminId } = req.body;
   
+      // ✅ Validate all required fields
       if (!name || !email || !department || !subjects || !adminId) {
         return res.status(400).json({ message: "All fields are required" });
       }
   
+      // ✅ Check if teacher already exists
       let existingTeacher = await Teacher.findOne({ email });
   
       if (existingTeacher) {
+        // ✅ Update existing teacher's subjects
         existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
         await existingTeacher.save();
         return res.status(200).json({ message: "Subjects updated successfully" });
       }
   
+      // ✅ Generate a random password
       const randomPassword = crypto.randomBytes(6).toString("hex");
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
   
+      // ✅ Create new teacher
       const newTeacher = new Teacher({
         name,
         email,
         password: hashedPassword,
         department,
         subjects,
-        adminId,  // ✅ Store adminId
+        adminId, // ✅ Store adminId
       });
   
       await newTeacher.save();
       await sendEmail(email, randomPassword, name);
   
-      res.status(201).json({ message: "Teacher added successfully, credentials sent via email" });
+      return res.status(201).json({ message: "Teacher added successfully, credentials sent via email" });
+  
     } catch (error) {
-      console.error("Error in adding/updating teacher:", error.message, error.stack);
-      res.status(500).json({ message: "Internal Server Error", error: error.message });
+      console.error("❌ Error in adding/updating teacher:", error.message, error.stack);
+      return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
   });
+  
 
 /** ✅ Remove Subject */
 router.post("/remove-subject", async (req, res) => {
@@ -195,26 +201,27 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
     }
 });
 
-router.get("/teacherslist", auth, async (req, res) => {
+router.get("/teacherslist", authMiddleware, async (req, res) => {
     try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Unauthorized: No admin ID found" });
+      const adminId = req.headers["x-admin-id"]; // ✅ Get adminId from headers
+
+      if (!adminId) {
+        return res.status(400).json({ message: "Missing Admin ID in request" });
       }
-  
-      const adminId = req.user.id; // Ensure adminId is correctly extracted
-  
+
       const teachers = await Teacher.find({ adminId });
-  
+
       if (!teachers || teachers.length === 0) {
         return res.status(404).json({ message: "No teachers found for this admin." });
       }
-  
+
       res.status(200).json({ teachers });
     } catch (error) {
       console.error("Error fetching teachers list:", error.message);
       res.status(500).json({ message: "Internal server error." });
     }
-  });
+});
+
   
   
 
