@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const subjectSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  year: { type: Number, required: true },
+  year: { type: String, required: true },
   semester: { type: Number, required: true },
   division: { type: String, required: true },
 });
