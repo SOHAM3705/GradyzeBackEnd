@@ -213,15 +213,10 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 });
 
 
-
 /** ✅ Fetch Teachers List (Admin Only) */
 router.get("/teacherslist", authMiddleware, async (req, res) => {
     try {
-        const adminId = req.user.adminId; // Get adminId from the decoded token
-
-        if (!adminId) {
-            return res.status(400).json({ message: "Admin ID is missing from the token." });
-        }
+        const { adminId } = req.user; // Extract adminId from the decoded token (from authMiddleware)
 
         // Fetch teachers associated with the adminId
         const teachers = await Teacher.find({ adminId });
@@ -248,10 +243,6 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
         return res.status(500).json({ message: "Internal server error." });
     }
 });
-
-
-
-
 
 
 module.exports = router;

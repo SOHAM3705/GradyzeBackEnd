@@ -26,12 +26,12 @@ router.post("/adminlogin", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // Generate JWT Token with Admin Name
     const token = jwt.sign(
-      { id: admin._id, name: admin.name }, // Include Admin Name in Token
+      { adminId: admin._id, name: admin.name }, // Use adminId instead of id
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+    
 
     res.status(200).json({
       message: "Login successful",
