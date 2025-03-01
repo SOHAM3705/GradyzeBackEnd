@@ -54,23 +54,28 @@ web.use(
     origin: function (origin, callback) {
       console.log("🌍 Incoming Request from:", origin || "Unknown Origin"); // Debugging Log
 
+      // Check if the origin is allowed or if it's a request without an origin (e.g., server-to-server)
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, true); // Allow the request
       } else {
-        console.error("❌ CORS Blocked:", origin);
-        return callback(new Error("CORS Policy: Not allowed by CORS"), false);
+        console.error("❌ CORS Blocked:", origin); // Log blocked origin
+        return callback(new Error("CORS Policy: Not allowed by CORS"), false); // Reject the request
       }
     },
     credentials: true, // ✅ Allow cookies & authentication headers
     methods: "GET,POST,PUT,DELETE,OPTIONS", // ✅ Allow necessary HTTP methods
-    allowedHeaders: ["Content-Type","Authorization","X-Admin-ID"] // ✅ Allow important headers
+    allowedHeaders: ["Content-Type", "Authorization", "X-Admin-ID"], // ✅ Allow important headers
+    preflightContinue: false, // ✅ Prevent CORS preflight requests from continuing to the next middleware
+    optionsSuccessStatus: 204, // ✅ Return a successful status for preflight requests (204 is a typical success status for OPTIONS)
   })
 );
 
-// ✅ Handle Preflight Requests (OPTIONS)
-web.options("*", cors());
+// ✅ Handle Preflight Requests (OPTIONS) by sending proper response
+web.options("*", (req, res) => {
+  res.status(204).end(); // Return 204 status for preflight request
+});
 
-// ✅ Sample route for testing
+// ✅ Sample route for testing CORS
 web.get("/", (req, res) => {
   res.send("CORS is configured properly!");
 });

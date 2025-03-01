@@ -217,8 +217,10 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 /** ✅ Fetch Teachers List (Admin Only) */
 router.get("/teacherslist", authMiddleware, async (req, res) => {
     try {
-        const adminId = req.headers["x-admin-id"]; // ✅ Get adminId from headers
+        // ✅ Get adminId from headers (ensure this is passed in the request)
+        const adminId = req.headers["x-admin-id"];
 
+        // Check if adminId is missing in the request
         if (!adminId) {
             return res.status(400).json({ message: "Missing Admin ID in request" });
         }
@@ -226,6 +228,7 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
         // Fetch teachers associated with the adminId
         const teachers = await Teacher.find({ adminId });
 
+        // If no teachers are found, return 404
         if (!teachers || teachers.length === 0) {
             return res.status(404).json({ message: "No teachers found for this admin." });
         }
@@ -236,14 +239,16 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
             name: teacher.name,
             email: teacher.email,
             department: teacher.department,
-            subjects: teacher.subjects, // Include subjects
+            subjects: teacher.subjects || [], // Ensure subjects is an array (in case it's missing or empty)
         }));
 
-        res.status(200).json({ teachers: formattedTeachers });
+        // Return the formatted teachers list with a 200 status
+        return res.status(200).json({ teachers: formattedTeachers });
 
     } catch (error) {
         console.error("Error fetching teachers list:", error.message);
-        res.status(500).json({ message: "Internal server error." });
+        // Return a 500 status if there's an internal server error
+        return res.status(500).json({ message: "Internal server error." });
     }
 });
 
