@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const axios = require("axios");
-const authMiddleware = require("../../middleware/auth");
+const authMiddleware = require("../../middleware/authmiddleware");
 
 dotenv.config(); // Load environment variables
 
@@ -217,23 +217,17 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 /** ✅ Fetch Teachers List (Admin Only) */
 router.get("/teacherslist", authMiddleware, async (req, res) => {
     try {
-        // ✅ Get adminId from headers (ensure this is passed in the request)
-        const adminId = req.headers["x-admin-id"];
-
-        // Check if adminId is missing in the request
-        if (!adminId) {
-            return res.status(400).json({ message: "Missing Admin ID in request" });
-        }
+        const adminId = req.user.adminId; // Get adminId from the decoded token
 
         // Fetch teachers associated with the adminId
         const teachers = await Teacher.find({ adminId });
 
         // If no teachers are found, return 404
-        if (!teachers || teachers.length === 0) {
+        if (teachers.length === 0) {
             return res.status(404).json({ message: "No teachers found for this admin." });
         }
 
-        // ✅ Format the teachers list with necessary details
+        // Format the teachers list with necessary details
         const formattedTeachers = teachers.map((teacher) => ({
             teacherId: teacher._id, // Use _id as teacherId
             name: teacher.name,
@@ -247,10 +241,10 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
 
     } catch (error) {
         console.error("Error fetching teachers list:", error.message);
-        // Return a 500 status if there's an internal server error
         return res.status(500).json({ message: "Internal server error." });
     }
 });
+
 
 
 
