@@ -148,41 +148,41 @@ router.get("/subjects", authMiddleware, async (req, res) => {
     }
 });
 
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+const Teacher = require("../models/Teacher"); // Adjust the path as needed
+const authMiddleware = require("../middleware/auth"); // Import authentication middleware
+
+dotenv.config();
+const router = express.Router();
+
 /** ✅ Teacher Login */
 router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Validate Input
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email and Password are required" });
-        }
-
-        // Find Teacher
-        const teacher = await Teacher.findOne({ email });
+        let teacher = await Teacher.findOne({ email });
         if (!teacher) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(404).json({ message: "Teacher not found" });
         }
 
-        // Compare Password
         const isMatch = await bcrypt.compare(password, teacher.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        // Generate JWT Token
         const token = jwt.sign(
             { teacherId: teacher._id, email: teacher.email },
             process.env.JWT_SECRET,
             { expiresIn: "1h" }
         );
 
-        // Return Response
         res.status(200).json({
             message: "Login successful",
             token,
             teacher: {
-                id: teacher._id,
                 name: teacher.name,
                 email: teacher.email,
                 department: teacher.department,
@@ -195,27 +195,23 @@ router.post("/login", async (req, res) => {
     }
 });
 
-/** ✅ Teacher Dashboard (Protected Route) */
+/** ✅ Protected Route (Example) */
 router.get("/dashboard", authMiddleware, async (req, res) => {
     try {
-        const email = req.teacher.email;
-
-        let teacher = await Teacher.findOne({ email });
+        const teacher = await Teacher.findById(req.teacher.teacherId).select("-password");
         if (!teacher) {
             return res.status(404).json({ message: "Teacher not found" });
         }
 
-        res.status(200).json({
-            name: teacher.name,
-            email: teacher.email,
-            department: teacher.department,
-            subjects: teacher.subjects,
-        });
+        res.status(200).json({ message: "Access granted", teacher });
     } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("Error in dashboard route:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
+module.exports = router;
+
 
 /** ✅ Fetch Teachers List (Admin Only) */
 router.get("/teacherslist", authMiddleware, async (req, res) => {

@@ -1,20 +1,30 @@
 const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const authMiddleware = (req, res, next) => {
-  try {
-    const token = req.header("Authorization")?.split(" ")[1]; // Extract token
+    const token = req.header("Authorization");
+    console.log("Received Token:", token); // Debugging log
+
     if (!token) {
-      return res.status(401).json({ message: "No token, authorization denied" });
+        return res.status(401).json({ message: "Access denied. No token provided." });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
-    req.user = decoded; // Attach user to request
+    try {
+        const tokenWithoutBearer = token.replace("Bearer ", "");
+        console.log("Token after removing 'Bearer':", tokenWithoutBearer);
 
-    next(); // Move to the next middleware
-  } catch (error) {
-    console.error("Authentication error:", error.message);
-    return res.status(401).json({ message: "Invalid token" });
-  }
+        const decoded = jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET);
+        console.log("Decoded Token:", decoded);
+
+        req.teacher = decoded; // Attach teacher info to request
+        next();
+    } catch (error) {
+        console.error("JWT Verification Error:", error);
+        res.status(400).json({ message: "Invalid token." });
+    }
 };
 
 module.exports = authMiddleware;
+
