@@ -219,6 +219,10 @@ router.get("/teacherslist", async (req, res) => {
     try {
         const adminId = req.user.adminId; // Get adminId from the decoded token
 
+        if (!adminId) {
+            return res.status(400).json({ message: "Admin ID is missing." });
+        }
+
         // Fetch teachers associated with the adminId
         const teachers = await Teacher.find({ adminId });
 
@@ -233,17 +237,18 @@ router.get("/teacherslist", async (req, res) => {
             name: teacher.name,
             email: teacher.email,
             department: teacher.department,
-            subjects: teacher.subjects || [], // Ensure subjects is an array (in case it's missing or empty)
+            subjects: Array.isArray(teacher.subjects) ? teacher.subjects : [], // Ensure subjects is an array
         }));
 
         // Return the formatted teachers list with a 200 status
         return res.status(200).json({ teachers: formattedTeachers });
 
     } catch (error) {
-        console.error("Error fetching teachers list:", error.message);
+        console.error("Error fetching teachers list:", error.stack); // Log full stack for debugging
         return res.status(500).json({ message: "Internal server error." });
     }
 });
+
 
 
 
