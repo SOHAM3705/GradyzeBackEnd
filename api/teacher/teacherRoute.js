@@ -86,24 +86,36 @@ router.post("/add-teacher", async (req, res) => {
 router.post("/remove-subject", async (req, res) => {
     try {
         const { email, subjectName, year, semester, division } = req.body;
+
         let teacher = await Teacher.findOne({ email });
         if (!teacher || !teacher.subjects) {
             return res.status(404).json({ message: "Teacher or subjects not found" });
         }
+
+        console.log("Existing subjects:", teacher.subjects);
+        console.log("Trying to remove:", { subjectName, year, semester, division });
+
         const updatedSubjects = teacher.subjects.filter(subject =>
-            !(subject.name === subjectName && subject.year === year && subject.semester === semester && subject.division === division)
+            !(subject.name.toLowerCase() === subjectName.toLowerCase() &&
+              Number(subject.year) === Number(year) &&
+              Number(subject.semester) === Number(semester) &&
+              Number(subject.division) === Number(division))
         );
+
         if (updatedSubjects.length === teacher.subjects.length) {
             return res.status(400).json({ message: "Subject not found in teacher's records" });
         }
+
         teacher.subjects = updatedSubjects;
         await teacher.save();
-        res.status(200).json({ message: "Subject removed successfully" });
+
+        res.status(200).json({ message: "Subject removed successfully", updatedSubjects });
     } catch (error) {
         console.error("Error in removing subject:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
 
 /** ✅ Fetch Assigned Subjects */
 router.get("/subjects", authMiddleware, async (req, res) => {
