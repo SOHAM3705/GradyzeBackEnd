@@ -44,14 +44,24 @@ const sendEmail = async (email, password, name) => {
     }
 };
 
-/** ✅ Add or Update Teacher */
 router.post("/add-teacher-subject", async (req, res) => {
     try {
         const { teacherId, name, email, department, teacherType, division, subjects, adminId } = req.body;
+
+        // Validate required fields
         if (!name || !email || !department || !teacherType || !adminId) {
             return res.status(400).json({ message: "All required fields must be provided" });
         }
+
+        // Find existing teacher if teacherId is provided
         let existingTeacher = teacherId ? await Teacher.findOne({ _id: teacherId, adminId }) : await Teacher.findOne({ email, adminId });
+
+        // If teacherId is provided but teacher not found, return error
+        if (teacherId && !existingTeacher) {
+            return res.status(404).json({ message: "Teacher not found" });
+        }
+
+        // Update existing teacher
         if (existingTeacher) {
             if (teacherType === "subjectTeacher") {
                 existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects || []);
@@ -61,6 +71,8 @@ router.post("/add-teacher-subject", async (req, res) => {
             await existingTeacher.save();
             return res.status(200).json({ message: "Teacher updated successfully", teacher: existingTeacher });
         }
+
+        // Create new teacher
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
         const newTeacher = new Teacher({
