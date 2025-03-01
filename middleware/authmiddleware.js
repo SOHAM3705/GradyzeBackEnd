@@ -1,18 +1,20 @@
-import { Navigate } from "react-router-dom";
+const jwt = require("jsonwebtoken");
 
-const PrivateRoute = ({ children, role }) => {
-  // Dynamically get the stored role from localStorage
-  const userId = localStorage.getItem(`${role}Id`);  // Use role dynamically
+const authMiddleware = (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.split(" ")[1]; // Extract token
+    if (!token) {
+      return res.status(401).json({ message: "No token, authorization denied" });
+    }
 
-  // Check if userId exists for the specified role
-  if (!userId) {
-    // If userId is not found for the given role, redirect to the login page
-    return <Navigate to={`/${role}login`} />;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+    req.user = decoded; // Attach user to request
+
+    next(); // Move to the next middleware
+  } catch (error) {
+    console.error("Authentication error:", error.message);
+    return res.status(401).json({ message: "Invalid token" });
   }
-
-  // If authenticated, allow access to the route
-  return children;
 };
 
-export default PrivateRoute;
-
+module.exports = authMiddleware;
