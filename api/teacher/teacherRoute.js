@@ -213,32 +213,29 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 });
 
 
-router.get("/teacherslist", authMiddleware, async (req, res) => {
-    try {
-        console.log("User making request:", req.user); // ✅ Log the user object
-
-        // Ensure user is authenticated
-        if (!req.user || !req.user.id) {
-            return res.status(401).json({ message: "Unauthorized: No admin ID found" });
-        }
-
-        // Fetch teachers added by this admin
-        const teachers = await Teacher.find({ adminId: req.user.id });
-
-        console.log("Teachers fetched:", teachers);
-
-        if (!teachers.length) {
-            return res.status(404).json({ message: "No teachers found for this admin." });
-        }
-
-        // Return formatted response
-        return res.status(200).json({ teachers });
-
-    } catch (error) {
-        console.error("Error fetching teachers list:", error);
-        return res.status(500).json({ message: "Internal server error." });
+router.get("/teacherslist", async (req, res) => {
+    const adminId = req.query.adminId || req.headers.adminid;
+  
+    console.log("Received adminId:", adminId); // Debugging log
+  
+    if (!adminId) {
+      return res.status(401).json({ message: "Unauthorized: No admin ID found" });
     }
-});
+  
+    try {
+      const teachers = await Teacher.find({ adminId });
+  
+      if (!teachers.length) {
+        return res.status(404).json({ message: "No teachers found" });
+      }
+  
+      res.status(200).json({ teachers });
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
 
 
 
