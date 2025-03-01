@@ -1,30 +1,18 @@
-const jwt = require("jsonwebtoken");
-const dotenv = require("dotenv");
+import { Navigate } from "react-router-dom";
 
-dotenv.config();
+const PrivateRoute = ({ children, role }) => {
+  // Dynamically get the stored role from localStorage
+  const userId = localStorage.getItem(`${role}Id`);  // Use role dynamically
 
-const authMiddleware = (req, res, next) => {
-    const token = req.header("Authorization");
-    console.log("Received Token:", token); // Debugging log
+  // Check if userId exists for the specified role
+  if (!userId) {
+    // If userId is not found for the given role, redirect to the login page
+    return <Navigate to={`/${role}login`} />;
+  }
 
-    if (!token) {
-        return res.status(401).json({ message: "Access denied. No token provided." });
-    }
-
-    try {
-        const tokenWithoutBearer = token.replace("Bearer ", "");
-        console.log("Token after removing 'Bearer':", tokenWithoutBearer);
-
-        const decoded = jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET);
-        console.log("Decoded Token:", decoded);
-
-        req.teacher = decoded; // Attach teacher info to request
-        next();
-    } catch (error) {
-        console.error("JWT Verification Error:", error);
-        res.status(400).json({ message: "Invalid token." });
-    }
+  // If authenticated, allow access to the route
+  return children;
 };
 
-module.exports = authMiddleware;
+export default PrivateRoute;
 

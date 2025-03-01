@@ -47,19 +47,25 @@ const sendEmail = async (email, password, name) => {
         console.error("Error sending email:", error);
     }
 };
-
 /** ✅ Add or Update Teacher */
 router.post("/add", async (req, res) => {
     try {
-        const { name, email, department, subjects, adminId } = req.body;
+        const { teacherId, name, email, department, subjects, adminId } = req.body;
 
-        // ✅ Validate all required fields
+        // ✅ Validate required fields
         if (!name || !email || !department || !subjects || !adminId) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        // ✅ Check if teacher already exists
-        let existingTeacher = await Teacher.findOne({ email });
+        let existingTeacher;
+        
+        if (teacherId) {
+            // ✅ Find teacher by ID (if provided)
+            existingTeacher = await Teacher.findOne({ _id: teacherId, adminId });
+        } else {
+            // ✅ Check if a teacher with the same email already exists under the same admin
+            existingTeacher = await Teacher.findOne({ email, adminId });
+        }
 
         if (existingTeacher) {
             // ✅ Update existing teacher's subjects
@@ -68,7 +74,7 @@ router.post("/add", async (req, res) => {
             return res.status(200).json({ message: "Subjects updated successfully" });
         }
 
-        // ✅ Generate a random password
+        // ✅ Generate a random password for new teachers
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -79,19 +85,23 @@ router.post("/add", async (req, res) => {
             password: hashedPassword,
             department,
             subjects,
-            adminId, // ✅ Store adminId
+            adminId,
         });
 
         await newTeacher.save();
         await sendEmail(email, randomPassword, name);
 
-        return res.status(201).json({ message: "Teacher added successfully, credentials sent via email" });
+        return res.status(201).json({
+            message: "Teacher added successfully, credentials sent via email",
+            teacherId: newTeacher._id,  // ✅ Return the `teacherId` in response
+        });
 
     } catch (error) {
         console.error("❌ Error in adding/updating teacher:", error.message, error.stack);
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
+
 
 
 /** ✅ Remove Subject */
@@ -220,11 +230,21 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
             return res.status(404).json({ message: "No teachers found for this admin." });
         }
 
-        res.status(200).json({ teachers });
+        // ✅ Ensure teacher ID is explicitly included
+        const formattedTeachers = teachers.map((teacher) => ({
+            teacherId: teacher._id, // Explicitly include _id as teacherId
+            name: teacher.name,
+            email: teacher.email,
+            department: teacher.department,
+            subjects: teacher.subjects, // Include subjects if needed
+        }));
+
+        res.status(200).json({ teachers: formattedTeachers });
     } catch (error) {
         console.error("Error fetching teachers list:", error.message);
         res.status(500).json({ message: "Internal server error." });
     }
 });
+
 
 module.exports = router;
