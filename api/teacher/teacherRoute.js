@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const axios = require("axios");
-const authMiddleware = require("../../middleware/auth");
+const authMiddleware = require("../../middleware/authmiddleware");
 
 dotenv.config(); // Load environment variables
 
@@ -48,7 +48,7 @@ const sendEmail = async (email, password, name) => {
     }
 };
 /** ✅ Add or Update Teacher */
-router.post("/add", async (req, res) => {
+router.post("/add-teacher", async (req, res) => {
     try {
         const { teacherId, name, email, department, subjects, adminId } = req.body;
 
@@ -213,34 +213,33 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 });
 
 
-/** ✅ Fetch Teachers List (Admin Only) */
 router.get("/teacherslist", authMiddleware, async (req, res) => {
     try {
-        const teachers = await Teacher.find({ adminId: req.user.id }); // Make sure this matches
-console.log("Teachers fetched:", teachers);
+        console.log("User making request:", req.user); // ✅ Log the user object
 
-        // If no teachers are found, return 404
-        if (teachers.length === 0) {
+        // Ensure user is authenticated
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: "Unauthorized: No admin ID found" });
+        }
+
+        // Fetch teachers added by this admin
+        const teachers = await Teacher.find({ adminId: req.user.id });
+
+        console.log("Teachers fetched:", teachers);
+
+        if (!teachers.length) {
             return res.status(404).json({ message: "No teachers found for this admin." });
         }
 
-        // Format the teachers list with necessary details
-        const formattedTeachers = teachers.map((teacher) => ({
-            teacherId: teacher._id, // Use _id as teacherId
-            name: teacher.name,
-            email: teacher.email,
-            department: teacher.department,
-            subjects: Array.isArray(teacher.subjects) ? teacher.subjects : [], // Ensure subjects is an array
-        }));
-
-        // Return the formatted teachers list with a 200 status
-        return res.status(200).json({ teachers: formattedTeachers });
+        // Return formatted response
+        return res.status(200).json({ teachers });
 
     } catch (error) {
-        console.error("Error fetching teachers list:", error.stack); // Log full stack for debugging
+        console.error("Error fetching teachers list:", error);
         return res.status(500).json({ message: "Internal server error." });
     }
 });
+
 
 
 module.exports = router;
