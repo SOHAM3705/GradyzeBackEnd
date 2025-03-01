@@ -148,15 +148,8 @@ router.get("/subjects", authMiddleware, async (req, res) => {
     }
 });
 
-const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const dotenv = require("dotenv");
-const Teacher = require("../models/Teacher"); // Adjust the path as needed
-const authMiddleware = require("../middleware/auth"); // Import authentication middleware
 
-dotenv.config();
-const router = express.Router();
+
 
 /** ✅ Teacher Login */
 router.post("/login", async (req, res) => {
@@ -210,7 +203,6 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
 
 
 /** ✅ Fetch Teachers List (Admin Only) */
