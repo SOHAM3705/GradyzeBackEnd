@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const axios = require("axios");
-const authMiddleware = require("../../middleware/authmiddleware");
+const authMiddleware = require("../../middleware/auth");
 
 dotenv.config(); // Load environment variables
 
