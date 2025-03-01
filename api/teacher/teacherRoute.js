@@ -58,7 +58,7 @@ router.post("/add", async (req, res) => {
         }
 
         let existingTeacher;
-        
+
         if (teacherId) {
             // ✅ Find teacher by ID (if provided)
             existingTeacher = await Teacher.findOne({ _id: teacherId, adminId });
@@ -71,7 +71,7 @@ router.post("/add", async (req, res) => {
             // ✅ Update existing teacher's subjects
             existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
             await existingTeacher.save();
-            return res.status(200).json({ message: "Subjects updated successfully" });
+            return res.status(200).json({ message: "Subjects updated successfully", teacher: existingTeacher });
         }
 
         // ✅ Generate a random password for new teachers
@@ -93,7 +93,7 @@ router.post("/add", async (req, res) => {
 
         return res.status(201).json({
             message: "Teacher added successfully, credentials sent via email",
-            teacherId: newTeacher._id,  // ✅ Return the `teacherId` in response
+            teacher: newTeacher,  // Return the full teacher object
         });
 
     } catch (error) {
@@ -101,7 +101,6 @@ router.post("/add", async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
-
 
 
 /** ✅ Remove Subject */
@@ -224,27 +223,30 @@ router.get("/teacherslist", authMiddleware, async (req, res) => {
             return res.status(400).json({ message: "Missing Admin ID in request" });
         }
 
+        // Fetch teachers associated with the adminId
         const teachers = await Teacher.find({ adminId });
 
         if (!teachers || teachers.length === 0) {
             return res.status(404).json({ message: "No teachers found for this admin." });
         }
 
-        // ✅ Ensure teacher ID is explicitly included
+        // ✅ Format the teachers list with necessary details
         const formattedTeachers = teachers.map((teacher) => ({
-            teacherId: teacher._id, // Explicitly include _id as teacherId
+            teacherId: teacher._id, // Use _id as teacherId
             name: teacher.name,
             email: teacher.email,
             department: teacher.department,
-            subjects: teacher.subjects, // Include subjects if needed
+            subjects: teacher.subjects, // Include subjects
         }));
 
         res.status(200).json({ teachers: formattedTeachers });
+
     } catch (error) {
         console.error("Error fetching teachers list:", error.message);
         res.status(500).json({ message: "Internal server error." });
     }
 });
+
 
 
 module.exports = router;
