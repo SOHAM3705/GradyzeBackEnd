@@ -82,14 +82,15 @@ router.post("/add-teacher-subject", async (req, res) => {
     }
 });
 
-
-
 router.post("/remove-subject", async (req, res) => {
     try {
+        console.log("📥 Received request to remove subject. Payload:", req.body);
+
         const { email, subjectName, year, semester, division } = req.body;
 
         // Validate required fields
-        if (!email || !subjectName || !year || !semester || !division) {
+        if (!email || !subjectName || !year || semester === undefined || !division) {
+            console.error("❌ Missing required fields:", { email, subjectName, year, semester, division });
             return res.status(400).json({ message: "Missing required fields." });
         }
 
@@ -98,37 +99,34 @@ router.post("/remove-subject", async (req, res) => {
             return res.status(404).json({ message: "Teacher or subjects not found." });
         }
 
-        console.log("Existing subjects:", teacher.subjects);
-        console.log("Trying to remove:", { subjectName, year, semester, division });
+        console.log("📌 Existing subjects before removal:", teacher.subjects);
 
-        // Convert to lowercase and trim before filtering
+        // Normalize case & trim spaces before filtering
         const updatedSubjects = teacher.subjects.filter(subject =>
             !(
                 subject.name.trim().toLowerCase() === subjectName.trim().toLowerCase() &&
-                subject.year.trim() === year.trim() &&
+                subject.year.trim().toLowerCase() === year.trim().toLowerCase() &&
                 Number(subject.semester) === Number(semester) &&
                 subject.division.trim().toLowerCase() === division.trim().toLowerCase()
             )
         );
 
         if (updatedSubjects.length === teacher.subjects.length) {
+            console.error("❌ Subject not found in teacher's records. Check for case mismatches.");
             return res.status(400).json({ message: "Subject not found in teacher's records." });
         }
 
-        // Update the database
+        // Update database
         teacher.subjects = updatedSubjects;
         await teacher.save();
 
+        console.log("✅ Subject removed successfully. Updated subjects:", updatedSubjects);
         return res.status(200).json({ message: "Subject removed successfully!", updatedSubjects });
     } catch (error) {
-        console.error("Error in removing subject:", error);
+        console.error("❌ Error in removing subject:", error);
         res.status(500).json({ message: "Internal Server Error." });
     }
 });
-
-module.exports = router;
-
-
 
 
 /** ✅ Fetch Assigned Subjects */
