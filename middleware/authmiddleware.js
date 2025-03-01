@@ -9,10 +9,8 @@ const authMiddleware = (req, res, next) => {
       return res.status(401).json({ message: "No token provided, authorization denied" });
     }
 
-    // Verify the token using your secret key
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Attach decoded user data to the request object (using adminId)
+    console.log("Decoded adminId:", decoded.id);  // Log to verify the adminId
     req.user = decoded;
 
     // Proceed to the next middleware or route handler
