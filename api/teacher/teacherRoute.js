@@ -215,7 +215,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 
 
 /** ✅ Fetch Teachers List (Admin Only) */
-router.get("/teacherslist", authMiddleware, async (req, res) => {
+router.get("/teacherslist", async (req, res) => {
     try {
         const adminId = req.user.adminId; // Get adminId from the decoded token
 
