@@ -45,7 +45,7 @@ const sendEmail = async (email, password, name) => {
 };
 
 /** ✅ Add or Update Teacher */
-router.post("/add-teacher", async (req, res) => {
+router.post("/add-teacher-subject", async (req, res) => {
     try {
         const { teacherId, name, email, department, teacherType, division, subjects, adminId } = req.body;
         if (!name || !email || !department || !teacherType || !adminId) {
@@ -115,6 +115,7 @@ router.post("/remove-subject", async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
 
 
 /** ✅ Fetch Assigned Subjects */
