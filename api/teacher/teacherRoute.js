@@ -44,27 +44,25 @@ const sendEmail = async (email, password, name) => {
     }
 };
 
+/** ✅ Add Teacher or Update Existing */
 router.post("/add-teacher-subject", async (req, res) => {
     try {
         const { teacherId, name, email, department, teacherType, division, subjects, adminId } = req.body;
 
-        // Validate required fields
         if (!name || !email || !department || !teacherType || !adminId) {
             return res.status(400).json({ message: "All required fields must be provided" });
         }
 
-        // Find existing teacher if teacherId is provided
         let existingTeacher = teacherId ? await Teacher.findOne({ _id: teacherId, adminId }) : await Teacher.findOne({ email, adminId });
 
-        // If teacherId is provided but teacher not found, return error
         if (teacherId && !existingTeacher) {
             return res.status(404).json({ message: "Teacher not found" });
         }
 
-        // Update existing teacher
         if (existingTeacher) {
             if (teacherType === "subjectTeacher") {
                 existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects || []);
+                existingTeacher.division = division;
             } else {
                 existingTeacher.division = division;
             }
@@ -72,7 +70,6 @@ router.post("/add-teacher-subject", async (req, res) => {
             return res.status(200).json({ message: "Teacher updated successfully", teacher: existingTeacher });
         }
 
-        // Create new teacher
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
         const newTeacher = new Teacher({
@@ -81,7 +78,7 @@ router.post("/add-teacher-subject", async (req, res) => {
             password: hashedPassword,
             department,
             teacherType,
-            division: teacherType === "classTeacher" ? division : undefined,
+            division,
             subjects: teacherType === "subjectTeacher" ? subjects || [] : undefined,
             adminId,
         });
@@ -94,49 +91,40 @@ router.post("/add-teacher-subject", async (req, res) => {
     }
 });
 
-router.post("/remove-subject", async (req, res) => {
+/** ✅ Remove Teacher */
+router.delete("/remove-teacher", async (req, res) => {
     try {
-        console.log("📥 Received request to remove subject. Payload:", req.body);
-
-        const { email, subjectName, year, semester, division } = req.body;
-
-        // Validate required fields
-        if (!email || !subjectName || !year || semester === undefined || !division) {
-            console.error("❌ Missing required fields:", { email, subjectName, year, semester, division });
-            return res.status(400).json({ message: "Missing required fields." });
+        const { email, adminId } = req.body;
+        if (!email || !adminId) {
+            return res.status(400).json({ message: "Email and Admin ID are required." });
         }
 
-        let teacher = await Teacher.findOne({ email: email.trim().toLowerCase() });
-        if (!teacher || !teacher.subjects || teacher.subjects.length === 0) {
-            return res.status(404).json({ message: "Teacher or subjects not found." });
+        const teacher = await Teacher.findOneAndDelete({ email, adminId });
+        if (!teacher) {
+            return res.status(404).json({ message: "Teacher not found." });
         }
 
-        console.log("📌 Existing subjects before removal:", teacher.subjects);
-
-        // Normalize case & trim spaces before filtering
-        const updatedSubjects = teacher.subjects.filter(subject =>
-            !(
-                subject.name.trim().toLowerCase() === subjectName.trim().toLowerCase() &&
-                subject.year.trim().toLowerCase() === year.trim().toLowerCase() &&
-                Number(subject.semester) === Number(semester) &&
-                subject.division.trim().toLowerCase() === division.trim().toLowerCase()
-            )
-        );
-
-        if (updatedSubjects.length === teacher.subjects.length) {
-            console.error("❌ Subject not found in teacher's records. Check for case mismatches.");
-            return res.status(400).json({ message: "Subject not found in teacher's records." });
-        }
-
-        // Update database
-        teacher.subjects = updatedSubjects;
-        await teacher.save();
-
-        console.log("✅ Subject removed successfully. Updated subjects:", updatedSubjects);
-        return res.status(200).json({ message: "Subject removed successfully!", updatedSubjects });
+        return res.status(200).json({ message: "Teacher removed successfully." });
     } catch (error) {
-        console.error("❌ Error in removing subject:", error);
+        console.error("Error in removing teacher:", error);
         res.status(500).json({ message: "Internal Server Error." });
+    }
+});
+
+/** ✅ Fetch All Teachers */
+router.get("/teacherslist", async (req, res) => {
+    try {
+        const adminId = req.query.adminId || req.headers.adminid;
+        if (!adminId) {
+            return res.status(401).json({ message: "Unauthorized: No admin ID provided" });
+        }
+        const teachers = await Teacher.find({ adminId });
+        if (!teachers.length) {
+            return res.status(404).json({ message: "No teachers found" });
+        }
+        res.status(200).json({ teachers });
+    } catch (error) {
+        res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
@@ -180,21 +168,5 @@ router.post("/login", async (req, res) => {
     }
 });
 
-/** ✅ Fetch All Teachers */
-router.get("/teacherslist", async (req, res) => {
-    try {
-        const adminId = req.query.adminId || req.headers.adminid;
-        if (!adminId) {
-            return res.status(401).json({ message: "Unauthorized: No admin ID provided" });
-        }
-        const teachers = await Teacher.find({ adminId });
-        if (!teachers.length) {
-            return res.status(404).json({ message: "No teachers found" });
-        }
-        res.status(200).json({ teachers });
-    } catch (error) {
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
 
 module.exports = router;
