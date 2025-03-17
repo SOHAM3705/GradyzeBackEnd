@@ -50,7 +50,7 @@ router.post("/add-teacher-subject", async (req, res) => {
         const { teacherId, name, email, department, teacherType, division, subjects, adminId } = req.body;
 
         if (!name || !email || !department || !teacherType || !adminId) {
-            return res.status(400).json({ message: "All required fields must be provided" });
+            return res.status(400).json({ message: "All required fields must be provided." });
         }
 
         let existingTeacher = teacherId 
@@ -66,7 +66,7 @@ router.post("/add-teacher-subject", async (req, res) => {
                 if (!subjects || subjects.length === 0) {
                     return res.status(400).json({ message: "Subjects are required for subject teachers." });
                 }
-                
+
                 // Validate each subject
                 for (let subject of subjects) {
                     if (!subject.name || !subject.year || !subject.semester || !subject.division) {
@@ -74,21 +74,22 @@ router.post("/add-teacher-subject", async (req, res) => {
                     }
                 }
 
+                // ✅ Merge existing and new subjects
                 existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
             } else {
                 existingTeacher.division = division;
             }
-            
+
             await existingTeacher.save();
             return res.status(200).json({ message: "Teacher updated successfully", teacher: existingTeacher });
         }
 
-        // Create new teacher if not found
+        // ✅ Create New Teacher
         if (teacherType === "subjectTeacher" && (!subjects || subjects.length === 0)) {
             return res.status(400).json({ message: "Subjects are required for subject teachers." });
         }
 
-        // Validate new subjectTeacher subjects
+        // ✅ Validate new subjectTeacher subjects
         if (teacherType === "subjectTeacher") {
             for (let subject of subjects) {
                 if (!subject.name || !subject.year || !subject.semester || !subject.division) {
@@ -99,7 +100,7 @@ router.post("/add-teacher-subject", async (req, res) => {
 
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
-        
+
         const newTeacher = new Teacher({
             name,
             email,
