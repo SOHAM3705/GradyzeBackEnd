@@ -238,6 +238,44 @@ router.delete("/delete/:id", async (req, res) => {
       res.status(500).json({ message: "Internal Server Error." });
     }
   });
+
+  /** ✅ Add a New Class Teacher */
+router.post("/add-class-teacher", async (req, res) => {
+    try {
+        const { name, email, department, teacherType, assignedClass, adminId } = req.body;
+
+        if (!name || !email || !department || !teacherType || !adminId || !assignedClass?.year || !assignedClass?.division) {
+            return res.status(400).json({ message: "All required fields must be provided." });
+        }
+
+        if (teacherType !== "classTeacher") {
+            return res.status(400).json({ message: "Teacher type must be classTeacher." });
+        }
+
+        // ✅ Generate Random Password & Hash It
+        const randomPassword = crypto.randomBytes(6).toString("hex");
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+        const newTeacher = new Teacher({
+            name,
+            email,
+            password: hashedPassword,
+            department,
+            teacherType,
+            assignedClass, // Store class details
+            adminId,
+        });
+
+        await newTeacher.save();
+        await sendEmail(email, randomPassword, name); // Send credentials via email
+        return res.status(201).json({ message: "Class Teacher added successfully", teacher: newTeacher });
+
+    } catch (error) {
+        console.error("Error in adding class teacher:", error);
+        return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    }
+});
+
   
 
 module.exports = router;
