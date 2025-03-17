@@ -53,7 +53,9 @@ router.post("/add-teacher-subject", async (req, res) => {
             return res.status(400).json({ message: "All required fields must be provided" });
         }
 
-        let existingTeacher = teacherId ? await Teacher.findOne({ _id: teacherId, adminId }) : await Teacher.findOne({ email, adminId });
+        let existingTeacher = teacherId 
+            ? await Teacher.findOne({ _id: teacherId, adminId }) 
+            : await Teacher.findOne({ email, adminId });
 
         if (teacherId && !existingTeacher) {
             return res.status(404).json({ message: "Teacher not found" });
@@ -61,33 +63,61 @@ router.post("/add-teacher-subject", async (req, res) => {
 
         if (existingTeacher) {
             if (teacherType === "subjectTeacher") {
-                existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects || []);
-                existingTeacher.division = division;
+                if (!subjects || subjects.length === 0) {
+                    return res.status(400).json({ message: "Subjects are required for subject teachers." });
+                }
+                
+                // Validate each subject
+                for (let subject of subjects) {
+                    if (!subject.name || !subject.year || !subject.semester || !subject.division) {
+                        return res.status(400).json({ message: "Each subject must include name, year, semester, and division." });
+                    }
+                }
+
+                existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
             } else {
                 existingTeacher.division = division;
             }
+            
             await existingTeacher.save();
             return res.status(200).json({ message: "Teacher updated successfully", teacher: existingTeacher });
         }
 
+        // Create new teacher if not found
+        if (teacherType === "subjectTeacher" && (!subjects || subjects.length === 0)) {
+            return res.status(400).json({ message: "Subjects are required for subject teachers." });
+        }
+
+        // Validate new subjectTeacher subjects
+        if (teacherType === "subjectTeacher") {
+            for (let subject of subjects) {
+                if (!subject.name || !subject.year || !subject.semester || !subject.division) {
+                    return res.status(400).json({ message: "Each subject must include name, year, semester, and division." });
+                }
+            }
+        }
+
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        
         const newTeacher = new Teacher({
             name,
             email,
             password: hashedPassword,
             department,
             teacherType,
-            division,
-            subjects: teacherType === "subjectTeacher" ? subjects || [] : undefined,
+            division: teacherType === "classTeacher" ? division : undefined,
+            subjects: teacherType === "subjectTeacher" ? subjects : undefined,
             adminId,
         });
+
         await newTeacher.save();
         await sendEmail(email, randomPassword, name);
         return res.status(201).json({ message: "Teacher added successfully", teacher: newTeacher });
+
     } catch (error) {
         console.error("Error in adding/updating teacher:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
+        return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
 
