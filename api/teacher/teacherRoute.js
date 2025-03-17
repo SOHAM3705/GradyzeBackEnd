@@ -13,17 +13,24 @@ dotenv.config();
 
 /** ✅ Function to Merge Subjects */
 const mergeSubjects = (existingSubjects, newSubjects) => {
-    const subjectMap = new Map();
-    existingSubjects.forEach(subject => {
-        const key = `${subject.name}-${subject.year}-${subject.semester}-${subject.division}`;
-        subjectMap.set(key, subject);
+    const uniqueSubjects = new Map();
+
+    // ✅ Add existing subjects
+    existingSubjects.forEach(sub => {
+        uniqueSubjects.set(`${sub.name}-${sub.year}-${sub.semester}-${sub.division}`, sub);
     });
-    newSubjects.forEach(subject => {
-        const key = `${subject.name}-${subject.year}-${subject.semester}-${subject.division}`;
-        subjectMap.set(key, subject);
+
+    // ✅ Add new subjects (only if not duplicate)
+    newSubjects.forEach(sub => {
+        const key = `${sub.name}-${sub.year}-${sub.semester}-${sub.division}`;
+        if (!uniqueSubjects.has(key)) {
+            uniqueSubjects.set(key, sub);
+        }
     });
-    return Array.from(subjectMap.values());
+
+    return Array.from(uniqueSubjects.values());
 };
+
 
 const emailContent = require("../../utils/newaccount");
 
@@ -44,60 +51,20 @@ const sendEmail = async (email, password, name) => {
     }
 };
 
-/** ✅ Add Teacher or Update Existing */
-router.post("/add-teacher-subject", async (req, res) => {
+/** ✅ Add a New Teacher */
+router.post("/add-teacher", async (req, res) => {
     try {
-        const { teacherId, name, email, department, teacherType, division, subjects, adminId } = req.body;
+        const { name, email, department, teacherType, division, subjects, adminId } = req.body;
 
         if (!name || !email || !department || !teacherType || !adminId) {
             return res.status(400).json({ message: "All required fields must be provided." });
         }
 
-        let existingTeacher = teacherId 
-            ? await Teacher.findOne({ _id: teacherId, adminId }) 
-            : await Teacher.findOne({ email, adminId });
-
-        if (teacherId && !existingTeacher) {
-            return res.status(404).json({ message: "Teacher not found" });
-        }
-
-        if (existingTeacher) {
-            if (teacherType === "subjectTeacher") {
-                if (!subjects || subjects.length === 0) {
-                    return res.status(400).json({ message: "Subjects are required for subject teachers." });
-                }
-
-                // Validate each subject
-                for (let subject of subjects) {
-                    if (!subject.name || !subject.year || !subject.semester || !subject.division) {
-                        return res.status(400).json({ message: "Each subject must include name, year, semester, and division." });
-                    }
-                }
-
-                // ✅ Merge existing and new subjects
-                existingTeacher.subjects = mergeSubjects(existingTeacher.subjects, subjects);
-            } else {
-                existingTeacher.division = division;
-            }
-
-            await existingTeacher.save();
-            return res.status(200).json({ message: "Teacher updated successfully", teacher: existingTeacher });
-        }
-
-        // ✅ Create New Teacher
         if (teacherType === "subjectTeacher" && (!subjects || subjects.length === 0)) {
             return res.status(400).json({ message: "Subjects are required for subject teachers." });
         }
 
-        // ✅ Validate new subjectTeacher subjects
-        if (teacherType === "subjectTeacher") {
-            for (let subject of subjects) {
-                if (!subject.name || !subject.year || !subject.semester || !subject.division) {
-                    return res.status(400).json({ message: "Each subject must include name, year, semester, and division." });
-                }
-            }
-        }
-
+        // ✅ Generate Random Password & Hash It
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -113,14 +80,53 @@ router.post("/add-teacher-subject", async (req, res) => {
         });
 
         await newTeacher.save();
-        await sendEmail(email, randomPassword, name);
+        await sendEmail(email, randomPassword, name); // Send credentials via email
         return res.status(201).json({ message: "Teacher added successfully", teacher: newTeacher });
 
     } catch (error) {
-        console.error("Error in adding/updating teacher:", error);
+        console.error("Error in adding teacher:", error);
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
+
+/** ✅ Add Subjects to an Existing Teacher */
+router.post("/add-subject", async (req, res) => {
+    try {
+        const { teacherId, subjects, adminId } = req.body;
+
+        if (!teacherId || !adminId || !subjects || subjects.length === 0) {
+            return res.status(400).json({ message: "Teacher ID, Admin ID, and subjects are required." });
+        }
+
+        let teacher = await Teacher.findOne({ _id: teacherId, adminId });
+
+        if (!teacher) {
+            return res.status(404).json({ message: "Teacher not found" });
+        }
+
+        if (teacher.teacherType !== "subjectTeacher") {
+            return res.status(400).json({ message: "Only subject teachers can have subjects assigned." });
+        }
+
+        // ✅ Validate Each Subject Before Adding
+        for (let subject of subjects) {
+            if (!subject.name || !subject.year || !subject.semester || !subject.division) {
+                return res.status(400).json({ message: "Each subject must include name, year, semester, and division." });
+            }
+        }
+
+        // ✅ Merge Existing & New Subjects (Avoid Duplicates)
+        teacher.subjects = mergeSubjects(teacher.subjects, subjects);
+
+        await teacher.save();
+        return res.status(200).json({ message: "Subjects added successfully", teacher });
+
+    } catch (error) {
+        console.error("Error adding subject:", error);
+        return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    }
+});
+
 
 router.post("/remove-subject", async (req, res) => {
     try {
