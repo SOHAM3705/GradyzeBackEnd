@@ -198,5 +198,27 @@ router.post("/login", async (req, res) => {
     }
 });
 
+router.delete("/delete/:id", async (req, res) => {
+    try {
+      const { adminId } = req.body;
+      const teacherId = req.params.id;
+  
+      if (!adminId) {
+        return res.status(400).json({ message: "Admin ID is required." });
+      }
+  
+      const teacher = await Teacher.findOneAndDelete({ _id: teacherId, adminId });
+  
+      if (!teacher) {
+        return res.status(404).json({ message: "Teacher not found or unauthorized." });
+      }
+  
+      res.status(200).json({ message: "Teacher deleted successfully!" });
+    } catch (error) {
+      console.error("Error deleting teacher:", error);
+      res.status(500).json({ message: "Internal Server Error." });
+    }
+  });
+  
 
 module.exports = router;
