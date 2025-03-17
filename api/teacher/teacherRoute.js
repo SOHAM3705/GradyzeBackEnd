@@ -89,7 +89,6 @@ router.post("/add-teacher", async (req, res) => {
     }
 });
 
-/** ✅ Add Subjects to an Existing Teacher */
 router.post("/add-subject", async (req, res) => {
     try {
         const { teacherId, subjects, adminId } = req.body;
@@ -104,28 +103,26 @@ router.post("/add-subject", async (req, res) => {
             return res.status(404).json({ message: "Teacher not found" });
         }
 
-        if (teacher.teacherType !== "subjectTeacher") {
-            return res.status(400).json({ message: "Only subject teachers can have subjects assigned." });
+        if (teacher.isSubjectTeacher) {
+            return res.status(400).json({ message: "Teacher is already a Subject Teacher." });
         }
 
-        // ✅ Validate Each Subject Before Adding
-        for (let subject of subjects) {
-            if (!subject.name || !subject.year || !subject.semester || !subject.division) {
-                return res.status(400).json({ message: "Each subject must include name, year, semester, and division." });
-            }
-        }
-
+        // ✅ Convert existing Class Teacher into Subject Teacher
+        teacher.isSubjectTeacher = true;
+        
         // ✅ Merge Existing & New Subjects (Avoid Duplicates)
-        teacher.subjects = mergeSubjects(teacher.subjects, subjects);
+        teacher.subjects = mergeSubjects(teacher.subjects || [], subjects);
 
         await teacher.save();
-        return res.status(200).json({ message: "Subjects added successfully", teacher });
+        return res.status(200).json({ message: "Teacher is now also a Subject Teacher!", teacher });
 
     } catch (error) {
         console.error("Error adding subject:", error);
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
+
+
 
 
 router.post("/remove-subject", async (req, res) => {
@@ -239,20 +236,30 @@ router.delete("/delete/:id", async (req, res) => {
     }
   });
 
-  /** ✅ Add a New Class Teacher */
-router.post("/add-class-teacher", async (req, res) => {
+  router.post("/add-class-teacher", async (req, res) => {
     try {
-        const { name, email, department, teacherType, assignedClass, adminId } = req.body;
+        const { name, email, department, assignedClass, adminId } = req.body;
 
-        if (!name || !email || !department || !teacherType || !adminId || !assignedClass?.year || !assignedClass?.division) {
+        if (!name || !email || !department || !adminId || !assignedClass?.year || !assignedClass?.division) {
             return res.status(400).json({ message: "All required fields must be provided." });
         }
 
-        if (teacherType !== "classTeacher") {
-            return res.status(400).json({ message: "Teacher type must be classTeacher." });
+        let teacher = await Teacher.findOne({ email, adminId });
+
+        if (teacher) {
+            if (teacher.isClassTeacher) {
+                return res.status(400).json({ message: "Teacher is already a Class Teacher." });
+            }
+
+            // ✅ Update existing teacher to be both Class & Subject Teacher
+            teacher.isClassTeacher = true;
+            teacher.assignedClass = assignedClass;
+            await teacher.save();
+
+            return res.status(200).json({ message: "Teacher is now also a Class Teacher!", teacher });
         }
 
-        // ✅ Generate Random Password & Hash It
+        // ✅ Create a new Class Teacher
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -261,20 +268,23 @@ router.post("/add-class-teacher", async (req, res) => {
             email,
             password: hashedPassword,
             department,
-            teacherType,
-            assignedClass, // Store class details
+            isClassTeacher: true,
+            assignedClass,
             adminId,
         });
 
         await newTeacher.save();
-        await sendEmail(email, randomPassword, name); // Send credentials via email
-        return res.status(201).json({ message: "Class Teacher added successfully", teacher: newTeacher });
+        await sendEmail(email, randomPassword, name);
+
+        return res.status(201).json({ message: "Class Teacher added successfully!", teacher: newTeacher });
 
     } catch (error) {
         console.error("Error in adding class teacher:", error);
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
+
+
 
   
 
