@@ -121,25 +121,37 @@ router.post("/add-teacher-subject", async (req, res) => {
     }
 });
 
-/** ✅ Remove Teacher */
-router.delete("/remove-teacher", async (req, res) => {
+router.post("/remove-subject", async (req, res) => {
     try {
-        const { email, adminId } = req.body;
-        if (!email || !adminId) {
-            return res.status(400).json({ message: "Email and Admin ID are required." });
-        }
-
-        const teacher = await Teacher.findOneAndDelete({ email, adminId });
-        if (!teacher) {
-            return res.status(404).json({ message: "Teacher not found." });
-        }
-
-        return res.status(200).json({ message: "Teacher removed successfully." });
+      const { teacherId, subjectName, year, semester, division, adminId } = req.body;
+  
+      if (!teacherId || !subjectName || !year || !semester || !division || !adminId) {
+        return res.status(400).json({ message: "All required fields must be provided." });
+      }
+  
+      const teacher = await Teacher.findOne({ _id: teacherId, adminId });
+  
+      if (!teacher) {
+        return res.status(404).json({ message: "Teacher not found or unauthorized." });
+      }
+  
+      // Remove subject from array
+      teacher.subjects = teacher.subjects.filter(
+        (subject) =>
+          subject.name !== subjectName ||
+          subject.year !== year ||
+          subject.semester !== semester ||
+          subject.division !== division
+      );
+  
+      await teacher.save();
+      res.status(200).json({ message: "Subject removed successfully!" });
     } catch (error) {
-        console.error("Error in removing teacher:", error);
-        res.status(500).json({ message: "Internal Server Error." });
+      console.error("Error removing subject:", error);
+      res.status(500).json({ message: "Internal Server Error." });
     }
-});
+  });
+  
 
 /** ✅ Fetch All Teachers */
 router.get("/teacherslist", async (req, res) => {
