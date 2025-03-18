@@ -51,20 +51,23 @@ const sendEmail = async (email, password, name) => {
     }
 };
 
-/** ✅ Add a New Teacher */
 router.post("/add-teacher", async (req, res) => {
     try {
-        const { name, email, department, teacherType, division, subjects, adminId } = req.body;
+        const { name, email, department, isClassTeacher, assignedClass, isSubjectTeacher, subjects, adminId } = req.body;
 
-        if (!name || !email || !department || !teacherType || !adminId) {
+        if (!name || !email || !department || !adminId) {
             return res.status(400).json({ message: "All required fields must be provided." });
         }
 
-        if (teacherType === "subjectTeacher" && (!subjects || subjects.length === 0)) {
+        if (isSubjectTeacher && (!subjects || subjects.length === 0)) {
             return res.status(400).json({ message: "Subjects are required for subject teachers." });
         }
 
-        // ✅ Generate Random Password & Hash It
+        if (isClassTeacher && (!assignedClass || !assignedClass.year || !assignedClass.division)) {
+            return res.status(400).json({ message: "Assigned class details are required for class teachers." });
+        }
+
+        // ✅ Generate Password
         const randomPassword = crypto.randomBytes(6).toString("hex");
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -73,21 +76,24 @@ router.post("/add-teacher", async (req, res) => {
             email,
             password: hashedPassword,
             department,
-            teacherType,
-            division: teacherType === "classTeacher" ? division : undefined,
-            subjects: teacherType === "subjectTeacher" ? subjects : undefined,
+            isClassTeacher,
+            assignedClass: isClassTeacher ? assignedClass : undefined,
+            isSubjectTeacher,
+            subjects: isSubjectTeacher ? subjects : [],
             adminId,
         });
 
         await newTeacher.save();
-        await sendEmail(email, randomPassword, name); // Send credentials via email
-        return res.status(201).json({ message: "Teacher added successfully", teacher: newTeacher });
+        await sendEmail(email, randomPassword, name);
+
+        return res.status(201).json({ message: "Teacher added successfully!", teacher: newTeacher });
 
     } catch (error) {
         console.error("Error in adding teacher:", error);
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
+
 
 router.post("/add-subject", async (req, res) => {
     try {
@@ -103,14 +109,12 @@ router.post("/add-subject", async (req, res) => {
             return res.status(404).json({ message: "Teacher not found" });
         }
 
-        if (teacher.isSubjectTeacher) {
-            return res.status(400).json({ message: "Teacher is already a Subject Teacher." });
+        // ✅ Convert existing teacher to Subject Teacher if not already
+        if (!teacher.isSubjectTeacher) {
+            teacher.isSubjectTeacher = true;
         }
 
-        // ✅ Convert existing Class Teacher into Subject Teacher
-        teacher.isSubjectTeacher = true;
-        
-        // ✅ Merge Existing & New Subjects (Avoid Duplicates)
+        // ✅ Merge existing and new subjects (Avoid duplicates)
         teacher.subjects = mergeSubjects(teacher.subjects || [], subjects);
 
         await teacher.save();
@@ -123,38 +127,42 @@ router.post("/add-subject", async (req, res) => {
 });
 
 
-
-
 router.post("/remove-subject", async (req, res) => {
     try {
-      const { teacherId, subjectName, year, semester, division, adminId } = req.body;
-  
-      if (!teacherId || !subjectName || !year || !semester || !division || !adminId) {
-        return res.status(400).json({ message: "All required fields must be provided." });
-      }
-  
-      const teacher = await Teacher.findOne({ _id: teacherId, adminId });
-  
-      if (!teacher) {
-        return res.status(404).json({ message: "Teacher not found or unauthorized." });
-      }
-  
-      // Remove subject from array
-      teacher.subjects = teacher.subjects.filter(
-        (subject) =>
-          subject.name !== subjectName ||
-          subject.year !== year ||
-          subject.semester !== semester ||
-          subject.division !== division
-      );
-  
-      await teacher.save();
-      res.status(200).json({ message: "Subject removed successfully!" });
+        const { teacherId, subjectName, year, semester, division, adminId } = req.body;
+
+        if (!teacherId || !subjectName || !year || !semester || !division || !adminId) {
+            return res.status(400).json({ message: "All required fields must be provided." });
+        }
+
+        const teacher = await Teacher.findOne({ _id: teacherId, adminId });
+
+        if (!teacher) {
+            return res.status(404).json({ message: "Teacher not found or unauthorized." });
+        }
+
+        // ✅ Remove subject
+        teacher.subjects = teacher.subjects.filter(
+            (subject) =>
+                subject.name !== subjectName ||
+                subject.year !== year ||
+                subject.semester !== semester ||
+                subject.division !== division
+        );
+
+        // ✅ If no subjects left, remove Subject Teacher role
+        if (teacher.subjects.length === 0) {
+            teacher.isSubjectTeacher = false;
+        }
+
+        await teacher.save();
+        res.status(200).json({ message: "Subject removed successfully!" });
+
     } catch (error) {
-      console.error("Error removing subject:", error);
-      res.status(500).json({ message: "Internal Server Error." });
+        console.error("Error removing subject:", error);
+        res.status(500).json({ message: "Internal Server Error." });
     }
-  });
+});
   
 
 /** ✅ Fetch All Teachers */
@@ -175,28 +183,51 @@ router.get("/teacherslist", async (req, res) => {
 });
 
 
-/** ✅ Fetch Assigned Subjects */
 router.get("/subjects", authMiddleware, async (req, res) => {
     try {
         const teacher = await Teacher.findOne({ email: req.teacher.email });
+
         if (!teacher) {
             return res.status(404).json({ message: "Teacher not found" });
         }
-        res.status(200).json({ subjects: teacher.subjects });
+
+        let responseData = {};
+
+        if (teacher.isSubjectTeacher) {
+            responseData.subjects = teacher.subjects;
+        }
+
+        if (teacher.isClassTeacher && teacher.assignedClass) {
+            responseData.assignedClass = teacher.assignedClass;
+        }
+
+        if (!teacher.isSubjectTeacher && !teacher.isClassTeacher) {
+            return res.status(400).json({ message: "This teacher is neither a subject teacher nor a class teacher." });
+        }
+
+        res.status(200).json(responseData);
     } catch (error) {
+        console.error("Error fetching subjects:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
-/** ✅ Teacher Login */
+
 router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
         let teacher = await Teacher.findOne({ email });
+
         if (!teacher || !(await bcrypt.compare(password, teacher.password))) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
-        const token = jwt.sign({ teacherId: teacher._id, email: teacher.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+        const token = jwt.sign(
+            { teacherId: teacher._id, email: teacher.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
         res.status(200).json({
             message: "Login successful",
             token,
@@ -204,9 +235,10 @@ router.post("/login", async (req, res) => {
                 name: teacher.name,
                 email: teacher.email,
                 department: teacher.department,
-                teacherType: teacher.teacherType,
-                division: teacher.division,
-                subjects: teacher.subjects,
+                isClassTeacher: teacher.isClassTeacher,
+                isSubjectTeacher: teacher.isSubjectTeacher,
+                assignedClass: teacher.isClassTeacher ? teacher.assignedClass : null,
+                subjects: teacher.isSubjectTeacher ? teacher.subjects : [],
             },
         });
     } catch (error) {
@@ -214,27 +246,30 @@ router.post("/login", async (req, res) => {
     }
 });
 
+
 router.delete("/delete/:id", async (req, res) => {
     try {
-      const { adminId } = req.body;
-      const teacherId = req.params.id;
-  
-      if (!adminId) {
-        return res.status(400).json({ message: "Admin ID is required." });
-      }
-  
-      const teacher = await Teacher.findOneAndDelete({ _id: teacherId, adminId });
-  
-      if (!teacher) {
-        return res.status(404).json({ message: "Teacher not found or unauthorized." });
-      }
-  
-      res.status(200).json({ message: "Teacher deleted successfully!" });
+        const { adminId } = req.body;
+        const teacherId = req.params.id;
+
+        if (!adminId) {
+            return res.status(400).json({ message: "Admin ID is required." });
+        }
+
+        const teacher = await Teacher.findOne({ _id: teacherId, adminId });
+
+        if (!teacher) {
+            return res.status(404).json({ message: "Teacher not found or unauthorized." });
+        }
+
+        await Teacher.findByIdAndDelete(teacherId);
+
+        res.status(200).json({ message: "Teacher deleted successfully!" });
     } catch (error) {
-      console.error("Error deleting teacher:", error);
-      res.status(500).json({ message: "Internal Server Error." });
+        console.error("Error deleting teacher:", error);
+        res.status(500).json({ message: "Internal Server Error." });
     }
-  });
+});
 
   router.post("/add-class-teacher", async (req, res) => {
     try {
@@ -251,7 +286,7 @@ router.delete("/delete/:id", async (req, res) => {
                 return res.status(400).json({ message: "Teacher is already a Class Teacher." });
             }
 
-            // ✅ Update existing teacher to be both Class & Subject Teacher
+            // ✅ Update existing teacher to also be a Class Teacher
             teacher.isClassTeacher = true;
             teacher.assignedClass = assignedClass;
             await teacher.save();
@@ -283,6 +318,7 @@ router.delete("/delete/:id", async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 });
+
 
 
 
