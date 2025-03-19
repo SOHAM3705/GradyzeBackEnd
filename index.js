@@ -12,7 +12,7 @@ const teacherRoutes = require("./api/teacher/teacherRoute"); // Assuming you cre
 const teacherPasswordRoutes = require("./api/Password/teacherpassword"); // Assuming you create the teacher password route
 const notificationRoutes = require('./api/admin/notificationRoute');
 const syllabusRoutes = require('./api/admin/adminsyllabusroute');  // Adjust the path to your route
-const { initGridFS } = require('./config/gridfs');  
+const { initGridFS } = require('./config/girdfs');  
 
 const web = express();
 
