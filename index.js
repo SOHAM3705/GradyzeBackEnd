@@ -10,6 +10,9 @@ const contactus = require("./api/Gsheet/contactus"); // Assuming you create the 
 const Adminfeedback = require("./api/Gsheet/Adminfeedback"); // Assuming you create the feedback route
 const teacherRoutes = require("./api/teacher/teacherRoute"); // Assuming you create the teacher route
 const teacherPasswordRoutes = require("./api/Password/teacherpassword"); // Assuming you create the teacher password route
+const notificationRoutes = require('./api/admin/notificationRoute');
+const syllabusRoutes = require('./api/admin/adminsyllabusroute');  // Adjust the path to your route
+const { initGridFS } = require('./config/gridfs');  
 
 const web = express();
 
@@ -27,6 +30,8 @@ const connectDB = async () => {
     });
 
     console.log(`🟢 MongoDB Connected to: ${mongoose.connection.name}`);
+    initGridFS(mongoose.connection.db);  // Initialize GridFS
+    console.log("🟢 GridFS Initialized")
   } catch (error) {
     console.error("🔴 MongoDB Connection Error:", error.message);
     process.exit(1);
@@ -90,6 +95,9 @@ web.use("/api/Gsheet", Adminfeedback);
 
 web.use("/api/teacher", teacherRoutes);
 web.use("/api/password", require("./middleware/auth"), teacherPasswordRoutes);
+
+web.use(syllabusRoutes);
+web.use(notificationRoutes);
 
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
