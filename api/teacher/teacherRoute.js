@@ -321,6 +321,38 @@ router.delete("/delete/:id", async (req, res) => {
 
 
 
+const express = require('express');
+const router = express.Router();
+const Teacher = require('../models/Teacher'); // Assuming you have a Teacher model
+const authMiddleware = require('../middleware/auth'); // Middleware to authenticate requests
+
+// Endpoint to remove the assigned class
+router.post('/remove-class', authMiddleware, async (req, res) => {
+  try {
+    const { teacherId, adminId } = req.body;
+
+    // Find the teacher by ID and admin ID
+    const teacher = await Teacher.findOne({ _id: teacherId, adminId });
+
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found.' });
+    }
+
+    // Remove the assigned class information
+    teacher.assignedClass = null;
+    teacher.isClassTeacher = false;
+
+    // Save the updated teacher record
+    await teacher.save();
+
+    res.status(200).json({ message: 'Class removed successfully.' });
+  } catch (error) {
+    console.error('Error removing class:', error);
+    res.status(500).json({ message: 'Failed to remove class.' });
+  }
+});
+
+module.exports = router;
 
   
 
