@@ -320,12 +320,6 @@ router.delete("/delete/:id", async (req, res) => {
 });
 
 
-
-const express = require('express');
-const router = express.Router();
-const Teacher = require('../models/Teacher'); // Assuming you have a Teacher model
-const authMiddleware = require('../middleware/auth'); // Middleware to authenticate requests
-
 // Endpoint to remove the assigned class
 router.post('/remove-class', authMiddleware, async (req, res) => {
   try {
