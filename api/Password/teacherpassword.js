@@ -40,22 +40,28 @@ router.post("/verify-email", async (req, res) => {
     }
 });
 
-// ✅ Route: Change password (with token verification)
+// ✅ Route: Change Password (Authenticate via Authorization Header)
 router.post("/change-password", async (req, res) => {
-    const { token, newPassword, confirmPassword } = req.body;
+    const { newPassword, confirmPassword } = req.body;
+    const authHeader = req.headers.authorization;
 
-    // Validate password match
-    if (newPassword !== confirmPassword) {
-        return res.status(400).json({ message: "Passwords do not match" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Unauthorized: Missing token" });
     }
 
     try {
-        // Verify JWT token
+        // Extract and verify JWT token
+        const token = authHeader.split(" ")[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const teacher = await Teacher.findOne({ email: decoded.email });
+        const teacher = await Teacher.findById(decoded.id);
 
         if (!teacher) {
-            return res.status(400).json({ message: "Invalid or expired token" });
+            return res.status(404).json({ message: "Teacher not found" });
+        }
+
+        // Validate password match
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "Passwords do not match" });
         }
 
         // Hash & update password
@@ -66,11 +72,12 @@ router.post("/change-password", async (req, res) => {
         res.json({ message: "Password updated successfully" });
     } catch (error) {
         if (error.name === "TokenExpiredError") {
-            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
+            return res.status(400).json({ message: "Token has expired. Please log in again." });
         }
         console.error("Error changing password:", error);
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
+
 
 module.exports = router;

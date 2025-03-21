@@ -2,7 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 const Notification = require("../../models/notificationmodel");
-const authMiddleware = require("../../middleware/authmiddleware");
+
 const path = require('path');
 const fs = require('fs');
 const { GridFSBucket } = require('mongodb');
@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 // Get notifications for a specific teacher under a specific admin
-router.get("/teacher/:teacherId/:adminId", authMiddleware, async (req, res) => {
+router.get("/teacher/:teacherId/:adminId",async (req, res) => {
   try {
     let { teacherId, adminId } = req.params;
 
