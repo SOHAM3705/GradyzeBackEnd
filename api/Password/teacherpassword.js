@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const Teacher = require("../../models/teacheraccount"); // Use the Teacher model
+const Teacher = require("../../models/teacheraccount");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const bcrypt = require("bcrypt");
 const { resetPasswordEmail } = require("../../utils/emailTemplates");
-const mongoose = require("mongoose");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; 
 
@@ -35,26 +34,28 @@ router.post("/verify-email", async (req, res) => {
         });
 
         res.json({ message: "Verification email sent successfully" });
-    } catch {
+    } catch (error) {
+        console.error("Error sending email:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
-// ✅ Route: Change password
+// ✅ Route: Change password (with token verification)
 router.post("/change-password", async (req, res) => {
-    const { email, newPassword, confirmPassword } = req.body;
+    const { token, newPassword, confirmPassword } = req.body;
 
-    // Check if passwords match
+    // Validate password match
     if (newPassword !== confirmPassword) {
         return res.status(400).json({ message: "Passwords do not match" });
     }
 
     try {
-        // Find teacher by email
-        const teacher = await Teacher.findOne({ email });
+        // Verify JWT token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const teacher = await Teacher.findOne({ email: decoded.email });
 
         if (!teacher) {
-            return res.status(404).json({ message: "Teacher not found" });
+            return res.status(400).json({ message: "Invalid or expired token" });
         }
 
         // Hash & update password
@@ -64,9 +65,12 @@ router.post("/change-password", async (req, res) => {
 
         res.json({ message: "Password updated successfully" });
     } catch (error) {
-        res.status(500).json({ message: "Something went wrong. Please try again." });
+        if (error.name === "TokenExpiredError") {
+            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
+        }
+        console.error("Error changing password:", error);
+        res.status(400).json({ message: "Invalid or expired token" });
     }
 });
-
 
 module.exports = router;
