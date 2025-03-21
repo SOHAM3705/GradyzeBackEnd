@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Syllabus = require("../models/Syllabus");
+const Syllabus = require("../../models/syllabusmodel");
 const authMiddleware = require("../middleware/authMiddleware");
 
 // Get syllabus data for a specific teacher under a specific admin
