@@ -18,23 +18,23 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ Fetch all notifications (with fileId included)
-router.get('/', async (req, res) => {
+router.get("/:adminId", async (req, res) => {
     try {
-        const notifications = await Notification.find().sort({ createdAt: -1 }); // Sort newest first
-
-        res.json(notifications.map((notif) => ({
-            _id: notif._id,
-            message: notif.message,
-            audience: notif.audience,
-            fileId: notif.fileId || null,
-            createdAt: notif.createdAt, // ✅ Include createdAt for timestamp
-        })));
+      const { adminId } = req.params; // ✅ Get adminId from request URL
+  
+      if (!adminId) {
+        return res.status(400).json({ error: "Admin ID is required" });
+      }
+  
+      const notifications = await Notification.find({ adminId }) // ✅ Fetch only this admin's notifications
+        .sort({ createdAt: -1 });
+  
+      res.json(notifications);
     } catch (err) {
-        console.error('Error fetching notifications:', err);
-        res.status(500).json({ error: 'Failed to fetch notifications' });
+      console.error("Error fetching notifications:", err);
+      res.status(500).json({ error: "Failed to fetch notifications" });
     }
-});
+  });
 
 // ✅ Create a new notification with file reference
 router.post('/', async (req, res) => {
@@ -44,7 +44,8 @@ router.post('/', async (req, res) => {
         const newNotification = new Notification({
             message,
             audience,
-            fileId,
+            fileId:fileId || null,
+            adminId,
         });
 
         const savedNotification = await newNotification.save();
