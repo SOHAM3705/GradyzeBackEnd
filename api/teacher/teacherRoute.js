@@ -222,18 +222,18 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
+        // ✅ FIXED: Use `teacher` instead of `user`
         const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.role }, // Include role
+            { id: teacher._id, email: teacher.email, role: "teacher" }, // Explicitly set role
             process.env.JWT_SECRET,
             { expiresIn: "1h" }
-          );
-          
+        );
 
         res.status(200).json({
             message: "Login successful",
             token,
             teacher: {
-                _id: teacher._id,  // ✅ Added teacher._id
+                _id: teacher._id,  // ✅ Ensure teacherId is included
                 name: teacher.name,
                 email: teacher.email,
                 department: teacher.department,

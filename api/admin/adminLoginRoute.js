@@ -6,7 +6,6 @@ const Admin = require("../../models/useradmin"); // Ensure correct import path
 
 const router = express.Router(); // Using express.Router()
 
-// Admin Login Route
 router.post("/adminlogin", async (req, res) => {
   const { email, password } = req.body;
 
@@ -26,13 +25,12 @@ router.post("/adminlogin", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
+    // ✅ FIXED: Use `admin` instead of `user`
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role }, // Include role
+      { id: admin._id, email: admin.email, role: "admin" }, // Explicitly set role
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    
-    
 
     res.status(200).json({
       message: "Login successful",
@@ -45,6 +43,7 @@ router.post("/adminlogin", async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
+
 
 module.exports = router;
 
