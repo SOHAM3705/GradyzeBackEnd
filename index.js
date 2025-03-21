@@ -25,13 +25,20 @@ const MONGO_URI = process.env.MONGO_URI;
 // Function to connect to MongoDB Atlas
 const connectDB = async () => {
   try {
-    await mongoose.connect(MONGO_URI, {
-      dbName: 'AdminDB', // Ensure connection to the 'AdminDB' database
+    await mongoose.connect(process.env.MONGO_URI, {
+      dbName: 'AdminDB',
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
 
     console.log(`🟢 MongoDB Connected to: ${mongoose.connection.name}`);
-    initGridFS(mongoose.connection.db);  // Initialize GridFS
-    console.log("🟢 GridFS Initialized")
+
+    // ✅ Initialize GridFS only when the connection is open
+    mongoose.connection.once("open", () => {
+      initGridFS();
+      console.log("🟢 GridFS Initialized");
+    });
+
   } catch (error) {
     console.error("🔴 MongoDB Connection Error:", error.message);
     process.exit(1);
