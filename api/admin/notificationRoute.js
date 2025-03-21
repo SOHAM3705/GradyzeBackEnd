@@ -39,7 +39,11 @@ router.get("/getnotificationlist/:adminId", async (req, res) => {
 // ✅ Create a new notification with file reference
 router.post('/createnotification', async (req, res) => {
     try {
-        const { message, audience, fileId } = req.body;
+        const { message, audience, fileId, adminId } = req.body; // ✅ Ensure adminId is extracted
+
+    if (!adminId) {
+      return res.status(400).json({ error: "adminId is required" });
+    }
 
         const newNotification = new Notification({
             message,
