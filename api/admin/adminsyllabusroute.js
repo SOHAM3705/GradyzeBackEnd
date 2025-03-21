@@ -98,39 +98,45 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-router.get("/files/:fileId", async (req, res) => {
+router.get('/files/:fileId', async (req, res) => {
     try {
         const { fileId } = req.params;
+        const db = mongoose.connection.db;
+        const bucket = new GridFSBucket(db, { bucketName: 'syllabusFiles' });
 
-        if (!fileId) {
-            return res.status(400).json({ error: "File ID is required" });
+        // ✅ Ensure fileId is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(fileId)) {
+            console.error(`Invalid ObjectId: ${fileId}`);
+            return res.status(400).json({ error: 'Invalid file ID' });
         }
 
-        const gfs = getGridFS("syllabus"); // ✅ Get GridFSBucket for syllabus files
+        // ✅ Fetch file metadata
+        const fileCursor = await bucket.find({ _id: new mongoose.Types.ObjectId(fileId) }).toArray();
 
-        if (!gfs) {
-            return res.status(500).json({ error: "GridFS not initialized" });
+        if (!fileCursor || fileCursor.length === 0) {
+            console.error(`Error: File with ID ${fileId} not found.`);
+            return res.status(404).json({ error: 'File not found' });
         }
 
-        // ✅ Check if file exists in GridFS
-        const files = await mongoose.connection.db.collection("syllabusFiles.files").findOne({ _id: new mongoose.Types.ObjectId(fileId) });
+        const file = fileCursor[0];
 
-        if (!files) {
-            return res.status(404).json({ error: "File not found in GridFS" });
+        // ✅ Ensure contentType exists before using it
+        if (!file || !file.contentType) {
+            console.error(`Error: contentType is missing for file: ${file.filename}`);
+            return res.status(500).json({ error: "File content type is missing" });
         }
 
-        const fileStream = gfs.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+        // ✅ Set proper headers
+        res.setHeader('Content-Type', file.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
 
-        fileStream.on("error", (err) => {
-            console.error("GridFS Stream Error:", err);
-            return res.status(500).json({ error: "Error reading file" });
-        });
+        // ✅ Stream file to response
+        const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+        downloadStream.pipe(res);
 
-        res.set("Content-Type", "application/pdf"); // ✅ Set correct content type
-        fileStream.pipe(res);
     } catch (err) {
-        console.error("Error fetching file:", err);
-        res.status(500).json({ error: "Failed to fetch file" });
+        console.error('Error downloading file:', err);
+        res.status(500).json({ error: 'Failed to download file' });
     }
 });
 
