@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ✅ Fetch all notifications (with fileId included)
-router.get('/api/notifications', async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const notifications = await Notification.find().sort({ createdAt: -1 }); // Sort newest first
 
@@ -37,7 +37,7 @@ router.get('/api/notifications', async (req, res) => {
 });
 
 // ✅ Create a new notification with file reference
-router.post('/api/notifications', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { message, audience, fileId } = req.body;
 
@@ -56,7 +56,7 @@ router.post('/api/notifications', async (req, res) => {
 });
 
 // ✅ Upload a notification file to GridFS
-router.post('/api/notifications/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
@@ -88,7 +88,7 @@ router.post('/api/notifications/upload', upload.single('file'), async (req, res)
 });
 
 // ✅ Download a file from GridFS
-router.get('/api/notifications/files/:fileId', async (req, res) => {
+router.get('/files/:fileId', async (req, res) => {
     try {
         const { fileId } = req.params;
         const db = mongoose.connection.db;
