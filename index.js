@@ -13,6 +13,7 @@ const teacherPasswordRoutes = require("./api/Password/teacherpassword"); // Assu
 const notificationRoutes = require('./api/admin/notificationRoute');
 const syllabusRoutes = require('./api/admin/adminsyllabusroute');  // Adjust the path to your route
 const { initGridFS } = require('./config/girdfs');  
+const teachersyllabiRoute = require("./routes/teachersyllabiRoute");
 
 const web = express();
 
@@ -117,6 +118,7 @@ web.use("/api/password", require("./middleware/auth"), teacherPasswordRoutes);
 web.use('/api/syllabi',syllabusRoutes);
 web.use('/api/notifications', notificationRoutes);
 
+web.use("/api/teachersyllabi", teachersyllabiRoute);
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
 web.use(express.static(reactBuildPath));

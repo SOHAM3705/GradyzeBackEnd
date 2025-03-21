@@ -22,11 +22,11 @@ router.get("/getsyllabi/:adminId", async (req, res) => {
     try {
         const { adminId } = req.params; // ✅ Get adminId from URL params
 
-        if (!adminId) {
-            return res.status(400).json({ error: "adminId is required" });
+        if (!mongoose.Types.ObjectId.isValid(adminId)) {
+            return res.status(400).json({ error: "Invalid adminId format" });
         }
 
-        const syllabi = await Syllabus.find({ adminId }).sort({ createdAt: -1 }); // ✅ Filter by adminId
+        const syllabi = await Syllabus.find({ adminId: new mongoose.Types.ObjectId(adminId) }).sort({ createdAt: -1 });
 
         console.log(`Fetched syllabi for admin ${adminId}:`, syllabi); // Debugging
 
@@ -42,10 +42,21 @@ router.get("/getsyllabi/:adminId", async (req, res) => {
 });
 
 // ✅ Create a new syllabus entry with a file reference
-router.post('/putsysllabus', async (req, res) => {
+router.post('/putsyllabi', async (req, res) => {
     try {
-        const { stream, pattern, year, fileId } = req.body;
-        const newSyllabus = new Syllabus({ stream, pattern, year, fileId });
+        const { stream, pattern, year, fileId, adminId } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(adminId)) {
+            return res.status(400).json({ error: "Invalid adminId format" });
+        }
+
+        const newSyllabus = new Syllabus({ 
+            stream, 
+            pattern, 
+            year, 
+            fileId, 
+            adminId: new mongoose.Types.ObjectId(adminId) 
+        });
 
         const savedSyllabus = await newSyllabus.save();
         res.json(savedSyllabus);
