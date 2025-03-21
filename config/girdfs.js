@@ -1,40 +1,46 @@
 const mongoose = require('mongoose');
-const gridfsStream = require('gridfs-stream');
 const { GridFsStorage } = require('multer-gridfs-storage');
 const multer = require('multer');
-require('dotenv').config(); // Load environment variables
+require('dotenv').config();
 
-// Define a variable to hold the GridFS instance
-let gfs;
+let gfs_syllabus, gfs_notifications;
 
-// Initialize GridFS stream
-const initGridFS = () => {
+// ✅ Initialize GridFS when DB connects
+mongoose.connection.once("open", () => {
   const db = mongoose.connection.db;
-  gfs = gridfsStream(db, mongoose.mongo);
-  gfs.collection('uploadsyllabus'); // Collection to store the files
+  
+  gfs_syllabus = new mongoose.mongo.GridFSBucket(db, { bucketName: 'syllabusFiles' });
+  gfs_notifications = new mongoose.mongo.GridFSBucket(db, { bucketName: 'notificationFiles' });
+
+  console.log("✅ GridFS initialized for syllabus and notifications!");
+});
+
+// ✅ Function to get GridFS instances
+const getGridFS = (type) => {
+  if (type === "syllabus") return gfs_syllabus;
+  if (type === "notifications") return gfs_notifications;
+  return null;
 };
 
-// Function to get the GridFS instance
-const getGridFS = () => gfs;
-
-// Setup Multer storage engine for GridFS
+// ✅ Dynamic Storage for Syllabus & Notifications
 const storage = new GridFsStorage({
-  url: process.env.MONGO_URI, // MongoDB connection URI
+  url: process.env.MONGO_URI,
   file: async (req, file) => {
+    const type = req.body.type || "syllabus"; // Default to syllabus
     return {
-      filename: `${Date.now()}_${file.originalname}`, // Unique filename with timestamp
-      bucketName: 'syllabusFiles', // Collection in GridFS
-      metadata: req.body.metadata || null, // Optional metadata
+      filename: `${Date.now()}_${file.originalname}`,
+      bucketName: type === "notifications" ? "notificationFiles" : "syllabusFiles",
+      metadata: req.body.metadata || null,
     };
   },
 });
 
-// Create multer instance with storage engine
+// ✅ Multer Upload Config
 const upload = multer({ storage });
 
-// Function to handle file upload to GridFS
+// ✅ Unified File Upload Function
 const uploadFile = (req, res) => {
-  const singleUpload = upload.single('file'); // 'file' is the field name in the form
+  const singleUpload = upload.single('file'); 
 
   singleUpload(req, res, (err) => {
     if (err) {
@@ -47,10 +53,11 @@ const uploadFile = (req, res) => {
 
     return res.status(200).json({
       message: 'File uploaded successfully',
-      fileID: req.file.id, // File ID in GridFS
-      filename: req.file.filename, // File name in GridFS
+      fileID: req.file.id,
+      filename: req.file.filename,
     });
   });
 };
 
-module.exports = { initGridFS, getGridFS, storage, uploadFile };
+module.exports = { getGridFS, uploadFile };
+

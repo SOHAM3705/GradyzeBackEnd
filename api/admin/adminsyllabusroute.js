@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ✅ Fetch all syllabi with file details populated
-router.get('/api/syllabi', async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const syllabi = await Syllabus.find().sort({ createdAt: -1 }); // Latest first
 
@@ -44,7 +44,7 @@ router.get('/api/syllabi', async (req, res) => {
 });
 
 // ✅ Create a new syllabus entry with a file reference
-router.post('/api/syllabi', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { stream, pattern, year, fileId } = req.body;
         const newSyllabus = new Syllabus({ stream, pattern, year, fileId });
@@ -58,7 +58,7 @@ router.post('/api/syllabi', async (req, res) => {
 });
 
 // ✅ Upload a syllabus file to GridFS
-router.post('/api/syllabus/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
@@ -90,7 +90,7 @@ router.post('/api/syllabus/upload', upload.single('file'), async (req, res) => {
 });
 
 // ✅ Download a file from GridFS
-router.get('/api/syllabus/files/:fileId', async (req, res) => {
+router.get('/files/:fileId', async (req, res) => {
     try {
         const { fileId } = req.params;
         const db = mongoose.connection.db;
