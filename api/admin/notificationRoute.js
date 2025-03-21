@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get("/:adminId", async (req, res) => {
+router.get("/getnotificationlist/:adminId", async (req, res) => {
     try {
       const { adminId } = req.params; // ✅ Get adminId from request URL
   
@@ -37,7 +37,7 @@ router.get("/:adminId", async (req, res) => {
   });
 
 // ✅ Create a new notification with file reference
-router.post('/', async (req, res) => {
+router.post('/createnotification', async (req, res) => {
     try {
         const { message, audience, fileId } = req.body;
 
