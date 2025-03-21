@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Syllabus = require("../../models/syllabusmodel");
-const authMiddleware = require("../middleware/authMiddleware");
+const authMiddleware = require("../../middleware/authmiddleware");
 
 // Get syllabus data for a specific teacher under a specific admin
 router.get("/teacher/:teacherId/:adminId", authMiddleware, async (req, res) => {
