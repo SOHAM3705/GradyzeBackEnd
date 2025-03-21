@@ -98,7 +98,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-router.get("/teachersyllabi/files/:fileId", async (req, res) => {
+router.get("/files/:fileId", async (req, res) => {
     try {
         const { fileId } = req.params;
 

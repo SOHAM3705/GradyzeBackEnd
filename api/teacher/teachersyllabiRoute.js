@@ -3,6 +3,7 @@ const router = express.Router();
 const Syllabus = require("../../models/syllabusmodel");
 const authMiddleware = require("../../middleware/authmiddleware");
 const mongoose = require("mongoose");
+const { GridFSBucket } = require("mongodb");
 
 // Get syllabus data for a specific teacher under a specific admin
 router.get("/teacher/:teacherId/:adminId", authMiddleware, async (req, res) => {
