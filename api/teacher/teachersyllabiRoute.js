@@ -6,14 +6,25 @@ const mongoose = require("mongoose");
 const { GridFSBucket } = require("mongodb");
 
 // Get syllabus data for a specific teacher under a specific admin
+const mongoose = require("mongoose");
+
 router.get("/teacher/:teacherId/:adminId", async (req, res) => {
   try {
     const { teacherId, adminId } = req.params;
 
-    // Fetch syllabus data where the assigned teacher and admin match
-    const syllabi = await Syllabus.find({ teacherId, adminId }).sort({ createdAt: -1 });
+    // ✅ Validate input
+    if (!mongoose.Types.ObjectId.isValid(teacherId) || !mongoose.Types.ObjectId.isValid(adminId)) {
+      return res.status(400).json({ message: "Invalid teacherId or adminId." });
+    }
 
-    if (!syllabi || syllabi.length === 0) {
+    // ✅ Convert to ObjectId
+    const validTeacherId = new mongoose.Types.ObjectId(teacherId);
+    const validAdminId = new mongoose.Types.ObjectId(adminId);
+
+    // ✅ Fetch syllabus data where teacher and admin match
+    const syllabi = await Syllabus.find({ teacherId: validTeacherId, adminId: validAdminId }).sort({ createdAt: -1 });
+
+    if (!syllabi.length) {
       return res.status(404).json({ message: "No syllabus found for this teacher." });
     }
 
@@ -23,6 +34,7 @@ router.get("/teacher/:teacherId/:adminId", async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 });
+
 
 // ✅ Download a file from GridFS
 router.get('/files/:fileId', async (req, res) => {
