@@ -114,7 +114,7 @@ web.use("/api/Gsheet", Adminfeedback);
 web.use("/api/teacher", teacherRoutes);
 web.use("/api/password", require("./middleware/auth"), teacherPasswordRoutes);
 
-web.use('/api/syllabus',syllabusRoutes);
+web.use('/api/syllabi',syllabusRoutes);
 web.use('/api/notifications', notificationRoutes);
 
 // Serve static files from React's build folder

@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ✅ Fetch all syllabi with file details populated
-router.get('/', async (req, res) => {
+router.get('/getsysllabus', async (req, res) => {
     try {
         const syllabi = await Syllabus.find().sort({ createdAt: -1 }); // Latest first
 
@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 });
 
 // ✅ Create a new syllabus entry with a file reference
-router.post('/', async (req, res) => {
+router.post('/putsysllabus', async (req, res) => {
     try {
         const { stream, pattern, year, fileId } = req.body;
         const newSyllabus = new Syllabus({ stream, pattern, year, fileId });
