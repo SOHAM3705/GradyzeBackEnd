@@ -2,29 +2,33 @@ const jwt = require("jsonwebtoken");
 
 const authMiddleware = (req, res, next) => {
   try {
-    // Extract token from Authorization header
+    // Extract token from Authorization header or Cookies
     const authHeader = req.header("Authorization");
-    console.log("Authorization Header:", authHeader); // ✅ Log the header
+    const token = authHeader ? authHeader.split(" ")[1] : req.cookies?.token;
 
-    if (!authHeader) {
-      return res.status(401).json({ message: "No token provided, authorization denied" });
-    }
+    console.log("Authorization Header:", authHeader);
+    console.log("Extracted Token:", token);
 
-    const token = authHeader.split(" ")[1]; // Extract token from 'Bearer <token>'
     if (!token) {
-      return res.status(401).json({ message: "Invalid token format" });
+      return res.status(401).json({ message: "No token provided, authorization denied" });
     }
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded Token:", decoded); // ✅ Log decoded data
+    console.log("Decoded Token:", decoded);
 
-    req.user = decoded; // Set the user in request object
-    next(); // Proceed to next middleware
+    // Extract user details from token
+    req.user = {
+      id: decoded.id, // Common user ID
+      role: decoded.role, // Can be "teacher", "admin", or "student"
+      email: decoded.email, // Email (optional for logging)
+    };
+
+    next(); // Continue to the next middleware/route
 
   } catch (error) {
     console.error("Authentication Error:", error.message);
-    
+
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({ message: "Token expired, please log in again" });
     }
@@ -34,5 +38,4 @@ const authMiddleware = (req, res, next) => {
 };
 
 module.exports = authMiddleware;
-
 

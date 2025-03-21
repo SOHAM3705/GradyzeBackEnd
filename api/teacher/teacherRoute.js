@@ -223,10 +223,11 @@ router.post("/login", async (req, res) => {
         }
 
         const token = jwt.sign(
-            { teacherId: teacher._id, email: teacher.email },
+            { id: user._id, email: user.email, role: user.role }, // Include role
             process.env.JWT_SECRET,
             { expiresIn: "1h" }
-        );
+          );
+          
 
         res.status(200).json({
             message: "Login successful",
