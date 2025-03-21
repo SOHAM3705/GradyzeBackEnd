@@ -18,25 +18,23 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ Fetch all syllabi with file details populated
-router.get('/getsysllabus', async (req, res) => {
+router.get("/getsyllabi/:adminId", async (req, res) => {
     try {
-        const syllabi = await Syllabus.find().sort({ createdAt: -1 }); // Latest first
+        const { adminId } = req.params; // ✅ Get adminId from URL params
 
-        console.log("Fetched syllabi from MongoDB:", syllabi); // Debugging
-
-        if (!syllabi || syllabi.length === 0) {
-            return res.status(404).json({ error: "No syllabi found" });
+        if (!adminId) {
+            return res.status(400).json({ error: "adminId is required" });
         }
 
-        res.json(syllabi.map((syllabus) => ({
-            _id: syllabus._id,
-            stream: syllabus.stream,
-            pattern: syllabus.pattern,
-            year: syllabus.year,
-            fileId: syllabus.fileId || null,
-            createdAt: syllabus.createdAt,
-        })));
+        const syllabi = await Syllabus.find({ adminId }).sort({ createdAt: -1 }); // ✅ Filter by adminId
+
+        console.log(`Fetched syllabi for admin ${adminId}:`, syllabi); // Debugging
+
+        if (!syllabi.length) {
+            return res.status(404).json({ error: "No syllabi found for this admin" });
+        }
+
+        res.json(syllabi);
     } catch (err) {
         console.error("Error fetching syllabi:", err);
         res.status(500).json({ error: "Failed to fetch syllabi" });
