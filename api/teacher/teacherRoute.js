@@ -232,6 +232,7 @@ router.post("/login", async (req, res) => {
             message: "Login successful",
             token,
             teacher: {
+                _id: teacher._id,  // ✅ Added teacher._id
                 name: teacher.name,
                 email: teacher.email,
                 department: teacher.department,
@@ -242,9 +243,11 @@ router.post("/login", async (req, res) => {
             },
         });
     } catch (error) {
+        console.error("Login Error:", error); // ✅ Log error for debugging
         res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
 
 
 router.delete("/delete/:id", async (req, res) => {
