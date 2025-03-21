@@ -241,6 +241,8 @@ router.post("/login", async (req, res) => {
                 isSubjectTeacher: teacher.isSubjectTeacher,
                 assignedClass: teacher.isClassTeacher ? teacher.assignedClass : null,
                 subjects: teacher.isSubjectTeacher ? teacher.subjects : [],
+                adminId: teacher.adminId,
+
             },
         });
     } catch (error) {

@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 const { GridFSBucket } = require("mongodb");
 
 // Get syllabus data for a specific teacher under a specific admin
-router.get("/teacher/:teacherId/:adminId", authMiddleware, async (req, res) => {
+router.get("/teacher/:teacherId/:adminId", async (req, res) => {
   try {
     const { teacherId, adminId } = req.params;
 

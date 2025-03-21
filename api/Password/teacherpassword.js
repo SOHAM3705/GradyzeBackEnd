@@ -42,7 +42,7 @@ router.post("/verify-email", async (req, res) => {
 
 // ✅ Route: Change password
 router.post("/change-password", async (req, res) => {
-    const { token, newPassword, confirmPassword } = req.body;
+    const { email, newPassword, confirmPassword } = req.body;
 
     // Check if passwords match
     if (newPassword !== confirmPassword) {
@@ -50,30 +50,23 @@ router.post("/change-password", async (req, res) => {
     }
 
     try {
-        // Verify JWT token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const teacher = await Teacher.findOne({ email: decoded.email });
+        // Find teacher by email
+        const teacher = await Teacher.findOne({ email });
 
         if (!teacher) {
-            return res.status(400).json({ message: "Invalid or expired token" });
+            return res.status(404).json({ message: "Teacher not found" });
         }
 
         // Hash & update password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await Teacher.findOneAndUpdate(
-            { email: decoded.email },
-            { $set: { password: hashedPassword } },
-            { new: true }
-        );
+        teacher.password = hashedPassword;
+        await teacher.save();
 
         res.json({ message: "Password updated successfully" });
     } catch (error) {
-        if (error.name === "TokenExpiredError") {
-            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
-        }
-
-        res.status(400).json({ message: "Invalid or expired token" });
+        res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 });
+
 
 module.exports = router;
