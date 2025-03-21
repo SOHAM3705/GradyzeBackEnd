@@ -48,7 +48,7 @@ router.get("/teacher/:teacherId/:adminId", authMiddleware, async (req, res) => {
 });
 
 // Create a new notification
-router.post("/teacher", authMiddleware, async (req, res) => {
+router.post("/teacher", async (req, res) => {
   try {
     const { message, audience, fileId, teacherId, adminId } = req.body;
 
