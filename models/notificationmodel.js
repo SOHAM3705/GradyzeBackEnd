@@ -1,30 +1,22 @@
 const mongoose = require("mongoose");
 
-const notificationSchema = new mongoose.Schema(
-  {
-    message: {
-      type: String,
-      required: true,
-    },
-    audience: {
-      type: String,
-      required: true,
-      enum: ["all", "teachers", "students"],
-    },
-    fileId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "File",
-    },
-    adminId: {
-      type: mongoose.Schema.Types.ObjectId, // ✅ Store the admin ID
-      ref: "Admin", // Make sure you have an Admin model
-      required: true,
-    }
+const notificationSchema = new mongoose.Schema({
+  message: { type: String, required: true },
+  audience: { 
+    type: String, 
+    required: true, 
+    enum: ["all", "teachers", "students"] 
   },
-  {
-    timestamps: true, // ✅ Adds createdAt and updatedAt
-  }
-);
+  fileId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "File", // ✅ Correct reference 
+  },
+  adminId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Admin", 
+    required: true, 
+  },
+}, { timestamps: true });
 
 const Notification = mongoose.model("Notification", notificationSchema);
 module.exports = Notification;

@@ -23,12 +23,17 @@ require('dotenv').config();
 const MONGO_URI = process.env.MONGO_URI;
 
 // Function to connect to MongoDB Atlas
+
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      dbName: 'AdminDB',
+    if (!MONGO_URI) {
+      throw new Error("❌ MONGO_URI is not defined in environment variables");
+    }
+
+    // ✅ Connect to MongoDB
+    await mongoose.connect(MONGO_URI, {
+      dbName: "AdminDB",
       useNewUrlParser: true,
-      useUnifiedTopology: true,
     });
 
     console.log(`🟢 MongoDB Connected to: ${mongoose.connection.name}`);
@@ -39,9 +44,15 @@ const connectDB = async () => {
       console.log("🟢 GridFS Initialized");
     });
 
+    // ✅ Handle disconnections
+    mongoose.connection.on("disconnected", () => {
+      console.warn("⚠️ MongoDB Disconnected. Reconnecting...");
+      connectDB(); // Attempt to reconnect
+    });
+
   } catch (error) {
     console.error("🔴 MongoDB Connection Error:", error.message);
-    process.exit(1);
+    process.exit(1); // Exit the process if the connection fails
   }
 };
 
