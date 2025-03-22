@@ -36,29 +36,42 @@ router.get("/getnotificationlist/:adminId", async (req, res) => {
     }
   });
 
-// ✅ Create a new notification with file reference
-router.post('/createnotification', async (req, res) => {
+  router.post("/createnotification", async (req, res) => {
     try {
-        const { message, audience, fileId, adminId } = req.body; // ✅ Ensure adminId is extracted
-
-    if (!adminId) {
-      return res.status(400).json({ error: "adminId is required" });
-    }
-
-        const newNotification = new Notification({
-            message,
-            audience,
-            fileId:fileId || null,
-            adminId,
-        });
-
-        const savedNotification = await newNotification.save();
-        res.json(savedNotification);
+      const { message, audience, fileId, adminId, teacherId } = req.body; 
+  
+      // Ensure either adminId or teacherId is provided
+      if (!adminId && !teacherId) {
+        return res.status(400).json({ error: "Either adminId or teacherId is required." });
+      }
+  
+      // Validate ObjectIds
+      if (adminId && !mongoose.Types.ObjectId.isValid(adminId)) {
+        return res.status(400).json({ error: "Invalid adminId format." });
+      }
+      if (teacherId && !mongoose.Types.ObjectId.isValid(teacherId)) {
+        return res.status(400).json({ error: "Invalid teacherId format." });
+      }
+  
+      // Create new notification
+      const newNotification = new Notification({
+        message,
+        audience,
+        fileId: fileId || null,
+        adminId: adminId ? new mongoose.Types.ObjectId(adminId) : null,
+        teacherId: teacherId ? new mongoose.Types.ObjectId(teacherId) : null,
+      });
+  
+      // Save to database
+      const savedNotification = await newNotification.save();
+      res.status(201).json({ message: "Notification created successfully", notification: savedNotification });
+  
     } catch (err) {
-        console.error('Error creating notification:', err);
-        res.status(500).json({ error: 'Failed to create notification' });
+      console.error("Error creating notification:", err);
+      res.status(500).json({ error: "Failed to create notification" });
     }
-});
+  });
+  
 
 // ✅ Upload a notification file to GridFS
 router.post('/upload', upload.single('file'), async (req, res) => {

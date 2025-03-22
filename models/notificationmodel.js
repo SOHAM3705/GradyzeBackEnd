@@ -9,14 +9,20 @@ const notificationSchema = new mongoose.Schema({
   },
   fileId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: "File", // ✅ Correct reference 
+    ref: "File"
   },
   adminId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Admin", 
-    required: true, 
+    default: null // ✅ Optional if created by a teacher
   },
+  teacherId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Teacher", 
+    default: null // ✅ Only present if created by a teacher
+  }
 }, { timestamps: true });
 
 const Notification = mongoose.model("Notification", notificationSchema);
 module.exports = Notification;
+

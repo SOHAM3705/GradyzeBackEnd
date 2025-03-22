@@ -62,27 +62,43 @@ router.post("/teacher", async (req, res) => {
   try {
     const { message, audience, fileId, teacherId, adminId } = req.body;
 
-    // Validate ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(teacherId) || !mongoose.Types.ObjectId.isValid(adminId)) {
-      return res.status(400).json({ message: "Invalid teacherId or adminId format." });
+    // Ensure required fields are provided
+    if (!teacherId || !adminId || !message || !audience) {
+      return res.status(400).json({ message: "All fields (teacherId, adminId, message, audience) are required." });
     }
 
+    // Validate ObjectIds
+    if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+      return res.status(400).json({ message: "Invalid teacherId format." });
+    }
+    if (!mongoose.Types.ObjectId.isValid(adminId)) {
+      return res.status(400).json({ message: "Invalid adminId format." });
+    }
+
+    // Create new notification
     const newNotification = new Notification({
       message,
       audience,
-      fileId,
-      teacherId,
-      adminId,
+      fileId: fileId || null, // Ensure fileId is optional
+      teacherId: new mongoose.Types.ObjectId(teacherId),
+      adminId: new mongoose.Types.ObjectId(adminId),
       createdAt: new Date()
     });
 
+    // Save to database
     await newNotification.save();
-    res.status(201).json(newNotification);
+
+    res.status(201).json({
+      message: "Notification created successfully",
+      notification: newNotification,
+    });
+
   } catch (error) {
-    console.error("Error creating notification:", error);
+    console.error("Error creating teacher notification:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 });
+
 
 // ✅ Upload a notification file to GridFS
 router.post('/upload', upload.single('file'), async (req, res) => {
