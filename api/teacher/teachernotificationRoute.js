@@ -157,4 +157,46 @@ router.delete('/delete/:id', async (req, res) => {
   }
 });
 
+router.get('/files/:fileId', async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const db = mongoose.connection.db;
+        const bucket = new GridFSBucket(db, { bucketName: 'notificationFiles' });
+
+        // ✅ Ensure fileId is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(fileId)) {
+            console.error(`Invalid ObjectId: ${fileId}`);
+            return res.status(400).json({ error: 'Invalid file ID' });
+        }
+
+        // ✅ Fetch file metadata
+        const fileCursor = await bucket.find({ _id: new mongoose.Types.ObjectId(fileId) }).toArray();
+
+        if (!fileCursor || fileCursor.length === 0) {
+            console.error(`Error: File with ID ${fileId} not found.`);
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        const file = fileCursor[0];
+
+        // ✅ Ensure contentType exists before using it
+        if (!file || !file.contentType) {
+            console.error(`Error: contentType is missing for file: ${file.filename}`);
+            return res.status(500).json({ error: "File content type is missing" });
+        }
+
+        // ✅ Set proper headers
+        res.setHeader('Content-Type', file.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+
+        // ✅ Stream file to response
+        const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+        downloadStream.pipe(res);
+
+    } catch (err) {
+        console.error('Error downloading file:', err);
+        res.status(500).json({ error: 'Failed to download file' });
+    }
+});
+
 module.exports = router;
