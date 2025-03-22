@@ -7,7 +7,7 @@ const loginRoute = require('./api/admin/adminLoginRoute');
 const authRoutes = require("./middleware/auth");// Assuming you create the login route
 const passwordResetRoutes = require("./api/Password/passwordResetRoutes"); // Assuming you create the password reset route
 const contactus = require("./api/Gsheet/contactus"); // Assuming you create the contactus route
-const Adminfeedback = require("./api/Gsheet/Adminfeedback"); // Assuming you create the feedback route
+const feedback = require("./api/Gsheet/feedback"); // Assuming you create the feedback route
 const teacherRoutes = require("./api/teacher/teacherRoute"); // Assuming you create the teacher route
 const teacherPasswordRoutes = require("./api/Password/teacherpassword"); // Assuming you create the teacher password route
 const notificationRoutes = require('./api/admin/notificationRoute');
@@ -113,7 +113,7 @@ web.use('/api/admin', loginRoute);
 web.use("/api/password", require("./middleware/auth"),passwordResetRoutes);
 web.use("/api/auth", authRoutes);
 web.use("/api/Gsheet", contactus);
-web.use("/api/Gsheet", Adminfeedback);
+web.use("/api/Gsheet", feedback);
 
 web.use("/api/teacher", teacherRoutes);
 web.use("/api/password", require("./middleware/auth"), teacherPasswordRoutes);
