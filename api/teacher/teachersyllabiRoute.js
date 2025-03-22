@@ -7,21 +7,20 @@ const { GridFSBucket } = require("mongodb");
 
 // Get syllabus data for a specific teacher under a specific admin
 
-router.get("/teacher/:teacherId/:adminId", async (req, res) => {
+router.get("/teacher/:adminId", async (req, res) => {
   try {
     const { teacherId, adminId } = req.params;
 
     // ✅ Validate input
-    if (!mongoose.Types.ObjectId.isValid(teacherId) || !mongoose.Types.ObjectId.isValid(adminId)) {
-      return res.status(400).json({ message: "Invalid teacherId or adminId." });
+    if (!mongoose.Types.ObjectId.isValid(adminId)) {
+      return res.status(400).json({ message: "Invalid adminId." });
     }
 
     // ✅ Convert to ObjectId
-    const validTeacherId = new mongoose.Types.ObjectId(teacherId);
     const validAdminId = new mongoose.Types.ObjectId(adminId);
 
     // ✅ Fetch syllabus data where teacher and admin match
-    const syllabi = await Syllabus.find({ teacherId: validTeacherId, adminId: validAdminId }).sort({ createdAt: -1 });
+    const syllabi = await Syllabus.find({adminId: validAdminId }).sort({ createdAt: -1 });
 
     if (!syllabi.length) {
       return res.status(404).json({ message: "No syllabus found for this teacher." });
