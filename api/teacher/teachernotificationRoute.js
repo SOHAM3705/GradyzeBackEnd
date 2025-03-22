@@ -24,35 +24,36 @@ router.get("/teacher/:adminId", async (req, res) => {
   try {
     let { adminId } = req.params;
 
-    // Check if adminId is valid
+    // Validate adminId
     if (!mongoose.Types.ObjectId.isValid(adminId)) {
       return res.status(400).json({ message: "Invalid adminId." });
     }
 
-    // Convert adminId to ObjectId
+    // Convert to ObjectId
     adminId = new mongoose.Types.ObjectId(adminId);
 
-    // Debugging log
+    // Debugging logs
     console.log("Fetching notifications for adminId:", adminId);
 
-    // Fetch notifications
-    const notifications = await Notification.find({ adminId }).sort({ createdAt: -1 });
+    // Fetch notifications where adminId matches and audience is "all" or "teacher"
+    const notifications = await Notification.find({
+      adminId,
+      audience: { $in: ["all", "teachers"] } // ✅ Condition to filter by audience
+    }).sort({ createdAt: -1 });
 
-    // Log fetched notifications
     console.log("Found Notifications:", notifications);
 
-    // If no notifications found, return 404
     if (!notifications || notifications.length === 0) {
-      return res.status(404).json({ message: "No notifications found for this admin." });
+      return res.status(404).json({ message: "No notifications found for this admin and audience." });
     }
 
-    // Return notifications
     res.json(notifications);
   } catch (error) {
     console.error("Error fetching notifications:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 });
+
 
 
 // Create a new notification
