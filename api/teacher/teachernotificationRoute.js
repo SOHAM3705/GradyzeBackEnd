@@ -84,7 +84,8 @@ router.post("/teacher", async (req, res) => {
       adminId: new mongoose.Types.ObjectId(adminId),
       createdAt: new Date()
     });
-
+    
+    
     // Save to database
     await newNotification.save();
 
@@ -132,5 +133,28 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
+// Delete a notification
+router.delete('/delete/:id', async (req, res) => {
+  const { id } = req.params;
+  const { teacherId } = req.body;
+
+  try {
+    const notification = await Notification.findById(id);
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    if (notification.teacherId.toString() !== teacherId) {
+      return res.status(403).json({ message: 'Unauthorized to delete this notification' });
+    }
+
+    await Notification.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Notification deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
 
 module.exports = router;

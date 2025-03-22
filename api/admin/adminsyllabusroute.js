@@ -140,4 +140,30 @@ router.get('/files/:fileId', async (req, res) => {
     }
 });
 
+router.delete('/delete/:id', async (req, res) => {
+  const { id } = req.params;
+  const { adminId } = req.body;
+
+  try {
+    const syllabus = await Syllabus.findById(id);
+
+    if (!syllabus) {
+      return res.status(404).json({ message: 'Syllabus not found' });
+    }
+
+    if (syllabus.adminId.toString() !== adminId) {
+      return res.status(403).json({ message: 'Unauthorized to delete this syllabus' });
+    }
+
+    await Syllabus.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Syllabus deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting syllabus:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+module.exports = router;
+
+
 module.exports = router;

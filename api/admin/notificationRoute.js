@@ -36,7 +36,8 @@ router.get("/getnotificationlist/:adminId", async (req, res) => {
     }
   });
 
-  router.post("/createnotification", async (req, res) => {
+
+router.post("/createnotification", async (req, res) => {
     try {
       const { message, audience, fileId, adminId, teacherId } = req.body; 
   
@@ -64,6 +65,7 @@ router.get("/getnotificationlist/:adminId", async (req, res) => {
   
       // Save to database
       const savedNotification = await newNotification.save();
+      res.json(savedNotification);
       res.status(201).json({ message: "Notification created successfully", notification: savedNotification });
   
     } catch (err) {
@@ -72,7 +74,6 @@ router.get("/getnotificationlist/:adminId", async (req, res) => {
     }
   });
   
-
 // ✅ Upload a notification file to GridFS
 router.post('/upload', upload.single('file'), async (req, res) => {
     try {
@@ -147,5 +148,29 @@ router.get('/files/:fileId', async (req, res) => {
         res.status(500).json({ error: 'Failed to download file' });
     }
 });
+
+// Delete a notification
+router.delete('/delete/:id', async (req, res) => {
+    const { id } = req.params;
+    const { adminId } = req.body;
+  
+    try {
+      const notification = await Notification.findById(id);
+  
+      if (!notification) {
+        return res.status(404).json({ message: 'Notification not found' });
+      }
+  
+      if (notification.adminId.toString() !== adminId) {
+        return res.status(403).json({ message: 'Unauthorized to delete this notification' });
+      }
+  
+      await Notification.findByIdAndDelete(id);
+      res.status(200).json({ message: 'Notification deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  });
 
 module.exports = router;
