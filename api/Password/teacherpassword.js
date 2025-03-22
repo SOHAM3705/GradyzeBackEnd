@@ -41,7 +41,7 @@ router.post("/verify-email", async (req, res) => {
     }
 });
 
-post("/change-password", async (req, res) => {
+router.post("/change-password", async (req, res) => {
     const { newPassword, confirmPassword } = req.body;
     const authHeader = req.headers.authorization;
 
