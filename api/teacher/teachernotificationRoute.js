@@ -88,6 +88,7 @@ router.post("/teacher", async (req, res) => {
     
     // Save to database
     await newNotification.save();
+    res.json(savedNotification);
 
     res.status(201).json({
       message: "Notification created successfully",
@@ -198,5 +199,31 @@ router.get('/files/:fileId', async (req, res) => {
         res.status(500).json({ error: 'Failed to download file' });
     }
 });
+
+// Get notifications created by a specific teacher
+router.get("/getteachercreates/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    // Validate teacherId
+    if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+      return res.status(400).json({ message: "Invalid teacherId." });
+    }
+
+    // Fetch notifications created by the teacher
+    const notifications = await Notification.find({ teacherId })
+      .sort({ createdAt: -1 });
+
+    if (!notifications || notifications.length === 0) {
+      return res.status(404).json({ message: "No notifications found for this teacher." });
+    }
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching teacher's created notifications:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
 
 module.exports = router;
