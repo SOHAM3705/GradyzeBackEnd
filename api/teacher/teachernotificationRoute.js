@@ -20,21 +20,20 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 // Get notifications for a specific teacher under a specific admin
-router.get("/teacher/:teacherId/:adminId",async (req, res) => {
+router.get("/teacher/:adminId",async (req, res) => {
   try {
-    let { teacherId, adminId } = req.params;
+    let {adminId} = req.params;
 
     // Validate ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(teacherId) || !mongoose.Types.ObjectId.isValid(adminId)) {
-      return res.status(400).json({ message: "Invalid teacherId or adminId format." });
+    if (!mongoose.Types.ObjectId.isValid(adminId)) {
+      return res.status(400).json({ message: "Invalid adminId." });
     }
 
     // Convert to ObjectId
-    teacherId = new mongoose.Types.ObjectId(teacherId);
     adminId = new mongoose.Types.ObjectId(adminId);
 
     // Fetch notifications where the teacher and admin match
-    const notifications = await Notification.find({ teacherId, adminId }).sort({ createdAt: -1 });
+    const notifications = await Notification.find({adminId}).sort({ createdAt: -1 });
 
     if (!notifications || notifications.length === 0) {
       return res.status(404).json({ message: "No notifications found for this teacher." });
