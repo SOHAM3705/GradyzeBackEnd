@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 // Get notifications for a specific teacher under a specific admin
-router.get("/teacher/:adminId", async (req, res) => {
+router.get("/getteachernotification/:adminId", async (req, res) => {
   try {
     let { adminId } = req.params;
 
@@ -35,10 +35,10 @@ router.get("/teacher/:adminId", async (req, res) => {
     // Debugging logs
     console.log("Fetching notifications for adminId:", adminId);
 
-    // Fetch notifications where adminId matches and audience is "all" or "teacher"
+    // Fetch notifications where adminId matches and audience is "all" or "teachers"
     const notifications = await Notification.find({
       adminId,
-      audience: { $in: ["all", "teachers"] } // ✅ Condition to filter by audience
+      audience: { $in: ["all", "teachers"] }
     }).sort({ createdAt: -1 });
 
     console.log("Found Notifications:", notifications);
@@ -53,6 +53,7 @@ router.get("/teacher/:adminId", async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 });
+
 
 
 
