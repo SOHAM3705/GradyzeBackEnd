@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const bcrypt = require("bcrypt");
 const { resetPasswordEmail } = require("../../utils/emailTemplates");
+const mongoose = require("mongoose");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; 
 
@@ -40,8 +41,7 @@ router.post("/verify-email", async (req, res) => {
     }
 });
 
-// ✅ Route: Change Password (Authenticate via Authorization Header)
-router.post("/change-password", async (req, res) => {
+post("/change-password", async (req, res) => {
     const { newPassword, confirmPassword } = req.body;
     const authHeader = req.headers.authorization;
 
@@ -78,6 +78,7 @@ router.post("/change-password", async (req, res) => {
         res.status(400).json({ message: "Invalid or expired token" });
     }
 });
+
 
 
 module.exports = router;
