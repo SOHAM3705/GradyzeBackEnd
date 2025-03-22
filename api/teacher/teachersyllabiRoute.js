@@ -9,7 +9,7 @@ const { GridFSBucket } = require("mongodb");
 
 router.get("/teacher/:adminId", async (req, res) => {
   try {
-    const { teacherId, adminId } = req.params;
+    const {adminId } = req.params;
 
     // ✅ Validate input
     if (!mongoose.Types.ObjectId.isValid(adminId)) {
