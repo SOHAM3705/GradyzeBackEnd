@@ -292,7 +292,7 @@ router.get("/generate-report/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // ✅ Find Class Teacher
+    // ✅ Ensure the teacher exists
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to generate report" });
@@ -306,9 +306,15 @@ router.get("/generate-report/:teacherId", async (req, res) => {
       return res.status(404).json({ message: "No students found to generate report" });
     }
 
-    // ✅ Create PDF Document
+    // ✅ Create reports directory if it doesn’t exist
+    const reportsDir = path.join(__dirname, "reports");
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+
+    // ✅ Generate PDF report
+    const filePath = path.join(reportsDir, `student_report_${year}_${division}.pdf`);
     const doc = new PDFDocument();
-    const filePath = path.join(__dirname, `reports/student_report_${year}_${division}.pdf`);
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
