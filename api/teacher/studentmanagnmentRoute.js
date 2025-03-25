@@ -140,8 +140,7 @@ router.post("/add-student", async (req, res) => {
     await newStudent.save();
 
     // ✅ Send Email with Credentials
-    await sendEmail({email,randomPassword,name,
-    });
+    await sendEmail(email,randomPassword,name);
 
     return res.status(201).json({ message: "Student added successfully & email sent!", student: newStudent });
 
