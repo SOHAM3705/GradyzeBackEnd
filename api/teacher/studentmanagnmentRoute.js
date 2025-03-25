@@ -91,6 +91,8 @@ const sendEmail = async (email, password, name) => {
       to: email,
       subject: "Welcome to Gradyze - Your Account Credentials",
       html: emailContent(name, email, password),
+    }, {
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
     });
 
     console.log(`✅ Email sent successfully to: ${email}`);
@@ -193,6 +195,38 @@ router.delete("/delete-student/:teacherId/:studentId", async (req, res) => {
     res.status(200).json({ message: "Student removed successfully!" });
   } catch (error) {
     console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+router.put("/update-student/:teacherId/:studentId", async (req, res) => {
+  try {
+    const { teacherId, studentId } = req.params;
+    const { rollNo, name, email } = req.body;
+
+    // ✅ Find the Class Teacher
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isClassTeacher) {
+      return res.status(403).json({ message: "Not authorized to update students" });
+    }
+
+    // ✅ Find the student in the teacher’s assigned class
+    const { year, division } = teacher.assignedClass;
+    let student = await Student.findOne({ _id: studentId, year, division });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found in this class" });
+    }
+
+    // ✅ Update student details
+    student.rollNo = rollNo || student.rollNo;
+    student.name = name || student.name;
+    student.email = email || student.email;
+    await student.save();
+
+    res.status(200).json({ message: "Student updated successfully!", student });
+  } catch (error) {
+    console.error("Error updating student:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
