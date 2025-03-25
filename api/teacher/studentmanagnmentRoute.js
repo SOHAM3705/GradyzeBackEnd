@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const Teacher = require("../models/teacheraccount"); // Adjust path if needed
+const Teacher = require("../../models/teacheraccount"); // Adjust path if needed
 
 // Route to get teacher role details
 router.get("/teacher-role/:teacherId", async (req, res) => {
