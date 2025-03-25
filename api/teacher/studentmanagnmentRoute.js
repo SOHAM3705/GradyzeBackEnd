@@ -8,6 +8,11 @@ const crypto = require("crypto");
 const emailContent = require("../../utils/newaccount");
 const axios = require("axios");
 const dotenv = require("dotenv");
+const multer = require("multer");
+const xlsx = require("xlsx");
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
 
 // Route to get teacher role details
 router.get("/teacher-role/:teacherId", async (req, res) => {
@@ -227,6 +232,113 @@ router.put("/update-student/:teacherId/:studentId", async (req, res) => {
     res.status(200).json({ message: "Student updated successfully!", student });
   } catch (error) {
     console.error("Error updating student:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+const upload = multer({ dest: "uploads/" });
+
+// ✅ API to Import Students from Excel
+router.post("/import-students/:teacherId", upload.single("file"), async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // ✅ Find Class Teacher
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isClassTeacher) {
+      return res.status(403).json({ message: "Not authorized to import students" });
+    }
+
+    const { year, division } = teacher.assignedClass;
+
+    // ✅ Read Excel File
+    const workbook = xlsx.readFile(file.path);
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    // ✅ Validate & Insert Students
+    const students = [];
+    for (const row of data) {
+      if (!row.RollNo || !row.Name || !row.Email) {
+        return res.status(400).json({ message: "Invalid Excel format. Must include RollNo, Name, and Email" });
+      }
+
+      const newStudent = new Student({
+        rollNo: row.RollNo,
+        name: row.Name,
+        email: row.Email,
+        year,
+        division,
+      });
+
+      students.push(newStudent);
+    }
+
+    await Student.insertMany(students);
+    res.status(201).json({ message: "Students imported successfully!", students });
+  } catch (error) {
+    console.error("Error importing students:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+
+router.get("/generate-report/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    // ✅ Find Class Teacher
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isClassTeacher) {
+      return res.status(403).json({ message: "Not authorized to generate report" });
+    }
+
+    // ✅ Fetch students from assigned class
+    const { year, division } = teacher.assignedClass;
+    const students = await Student.find({ year, division });
+
+    if (students.length === 0) {
+      return res.status(404).json({ message: "No students found to generate report" });
+    }
+
+    // ✅ Create PDF Document
+    const doc = new PDFDocument();
+    const filePath = path.join(__dirname, `reports/student_report_${year}_${division}.pdf`);
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // ✅ Add Title
+    doc.fontSize(18).text(`Student Report - ${year} ${division}`, { align: "center" });
+    doc.moveDown();
+
+    // ✅ Table Header
+    doc.fontSize(12).text("Roll No", 50, doc.y);
+    doc.text("Name", 150, doc.y);
+    doc.text("Email", 300, doc.y);
+    doc.moveDown();
+
+    // ✅ Student Data
+    students.forEach((student) => {
+      doc.text(student.rollNo.toString(), 50, doc.y);
+      doc.text(student.name, 150, doc.y);
+      doc.text(student.email, 300, doc.y);
+      doc.moveDown();
+    });
+
+    doc.end();
+
+    stream.on("finish", () => {
+      res.download(filePath, `Student_Report_${year}_${division}.pdf`, () => {
+        fs.unlinkSync(filePath); // ✅ Delete file after download
+      });
+    });
+  } catch (error) {
+    console.error("Error generating report:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
