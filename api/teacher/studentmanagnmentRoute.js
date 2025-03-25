@@ -74,23 +74,31 @@ router.get("/subject-details/:teacherId", async (req, res) => {
   }
 });
 
-/** ✅ Function to Send Email via Resend API */
 const sendEmail = async (email, password, name) => {
   try {
-      await axios.post("https://api.resend.com/emails", {
-          from: "support@gradyze.com",
-          to: email,
-          subject: "Welcome to Gradyze - Your Account Credentials",
-          html: emailContent(name, email, password),
-      }, {
-          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
-      });
-      console.log("Email sent successfully to:", email);
+    if (!process.env.RESEND_API_KEY) {
+      console.error("❌ Resend API Key is missing. Please check your environment variables.");
+      return;
+    }
+
+    if (!email || typeof email !== "string") {
+      console.error("❌ Invalid email address provided:", email);
+      return;
+    }
+
+    const response = await resendApi.post("", {
+      from: "support@gradyze.com",
+      to: email,
+      subject: "Welcome to Gradyze - Your Account Credentials",
+      html: emailContent(name, email, password),
+    });
+
+    console.log(`✅ Email sent successfully to: ${email}`);
+    return response.data;
   } catch (error) {
-      console.error("Error sending email:", error);
+    console.error("❌ Error sending email:", error.response?.data || error.message);
   }
 };
-
 // ✅ Add Student API with Account Creation
 router.post("/add-student", async (req, res) => {
   try {
@@ -132,10 +140,7 @@ router.post("/add-student", async (req, res) => {
     await newStudent.save();
 
     // ✅ Send Email with Credentials
-    await sendEmail({
-      email,
-      randomPassword,
-      name,
+    await sendEmail({email,randomPassword,name,
     });
 
     return res.status(201).json({ message: "Student added successfully & email sent!", student: newStudent });
