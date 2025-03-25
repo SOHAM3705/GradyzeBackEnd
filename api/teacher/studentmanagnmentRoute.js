@@ -5,6 +5,7 @@ const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel.js");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const emailContent = require("../../utils/newaccount");
 
 // Route to get teacher role details
 router.get("/teacher-role/:teacherId", async (req, res) => {
