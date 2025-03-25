@@ -6,6 +6,8 @@ const Student = require("../../models/studentModel.js");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const emailContent = require("../../utils/newaccount");
+const axios = require("axios");
+const dotenv = require("dotenv");
 
 // Route to get teacher role details
 router.get("/teacher-role/:teacherId", async (req, res) => {
@@ -145,5 +147,54 @@ router.post("/add-student", async (req, res) => {
   }
 });
 
+// ✅ Fetch Students for Class Teacher
+router.get("/students/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    // ✅ Find Class Teacher
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isClassTeacher) {
+      return res.status(403).json({ message: "Not authorized to view students" });
+    }
+
+    // ✅ Fetch students based on assigned class
+    const { year, division } = teacher.assignedClass;
+    const students = await Student.find({ year, division });
+
+    res.status(200).json({ students });
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+router.delete("/delete-student/:teacherId/:rollNo", async (req, res) => {
+  try {
+    const { teacherId, rollNo } = req.params;
+
+    // ✅ Find Class Teacher
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isClassTeacher) {
+      return res.status(403).json({ message: "Not authorized to delete students" });
+    }
+
+    // ✅ Check if student exists in the teacher's class
+    const { year, division } = teacher.assignedClass;
+    const student = await Student.findOne({ rollNo, year, division });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found in this class" });
+    }
+
+    // ✅ Delete the student
+    await Student.deleteOne({ rollNo, year, division });
+
+    res.status(200).json({ message: "Student removed successfully!" });
+  } catch (error) {
+    console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 
 module.exports = router;
