@@ -133,10 +133,9 @@ router.post("/add-student", async (req, res) => {
 
     // ✅ Send Email with Credentials
     await sendEmail({
-      to: email,
-      name,
       email,
-      password: randomPassword,
+      randomPassword,
+      name,
     });
 
     return res.status(201).json({ message: "Student added successfully & email sent!", student: newStudent });
@@ -169,9 +168,9 @@ router.get("/students/:teacherId", async (req, res) => {
   }
 });
 
-router.delete("/delete-student/:teacherId/:rollNo", async (req, res) => {
+router.delete("/delete-student/:teacherId/:studentId", async (req, res) => {
   try {
-    const { teacherId, rollNo } = req.params;
+    const { teacherId, studentId } = req.params;
 
     // ✅ Find Class Teacher
     const teacher = await Teacher.findById(teacherId);
@@ -179,16 +178,13 @@ router.delete("/delete-student/:teacherId/:rollNo", async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete students" });
     }
 
-    // ✅ Check if student exists in the teacher's class
-    const { year, division } = teacher.assignedClass;
-    const student = await Student.findOne({ rollNo, year, division });
-
+    // ✅ Find and delete student
+    const student = await Student.findById(studentId);
     if (!student) {
-      return res.status(404).json({ message: "Student not found in this class" });
+      return res.status(404).json({ message: "Student not found" });
     }
 
-    // ✅ Delete the student
-    await Student.deleteOne({ rollNo, year, division });
+    await Student.deleteOne({ _id: studentId });
 
     res.status(200).json({ message: "Student removed successfully!" });
   } catch (error) {
@@ -196,5 +192,6 @@ router.delete("/delete-student/:teacherId/:rollNo", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 module.exports = router;
