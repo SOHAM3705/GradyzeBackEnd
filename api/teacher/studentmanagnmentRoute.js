@@ -1,7 +1,7 @@
 // Import necessary modules
 const express = require("express");
 const router = express.Router();
-const Teacher = require("../models/teacheraccount");
+const Teacher = require("../../models/teacheraccount");
 
 // ✅ Route to fetch class details (for Class Teacher)
 router.get("/class-details/:teacherId", async (req, res) => {
