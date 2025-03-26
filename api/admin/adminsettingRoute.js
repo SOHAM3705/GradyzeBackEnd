@@ -10,12 +10,13 @@ const path = require("path");
 const verifyToken = require("../../middleware/settingauth"); // ✅ Middleware for authentication
 const Admin = require("../../models/useradmin"); // Collection: "admins"
 
+
 const router = express.Router();
 
 // ✅ Configure Multer for temporary storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "profileUploads/");
+        cb(null, "Uploads/");
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + path.extname(file.originalname));
