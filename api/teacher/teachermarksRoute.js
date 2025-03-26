@@ -5,7 +5,6 @@ const Teacher = require("../../models/teacheraccount");
 
 const router = express.Router();
 
-
 // Middleware to check teacher role
 async function checkTeacherRole(req, res, next) {
   try {
@@ -21,13 +20,15 @@ async function checkTeacherRole(req, res, next) {
 // Fetch students based on class teacher's assigned class
 router.get("/students", checkTeacherRole, async (req, res) => {
   try {
-    const { year, division } = req.query;
+    const { year, division, semester } = req.query;
     if (req.teacher.isClassTeacher) {
-      if (req.teacher.assignedClass.year !== year || req.teacher.assignedClass.division !== division) {
+      if (req.teacher.assignedClass.year !== year ||
+          req.teacher.assignedClass.division !== division ||
+          req.teacher.assignedClass.semester !== semester) {
         return res.status(403).json({ error: "Not authorized to access this class" });
       }
     }
-    const students = await Student.find({ year, division });
+    const students = await Student.find({ year, division, semester });
     res.status(200).json(students);
   } catch (error) {
     res.status(500).json({ error: "Error fetching students" });
@@ -40,12 +41,12 @@ router.post("/add-marks", checkTeacherRole, async (req, res) => {
     if (!req.teacher.isSubjectTeacher) {
       return res.status(403).json({ error: "Not authorized to assign marks" });
     }
-    const { studentId, subject, marksObtained, totalMarks, examType } = req.body;
-    const subjectExists = req.teacher.subjects.some(sub => sub.name === subject);
+    const { studentId, subject, marksObtained, totalMarks, examType, semester } = req.body;
+    const subjectExists = req.teacher.subjects.some(sub => sub.name === subject && sub.semester === semester);
     if (!subjectExists) {
       return res.status(403).json({ error: "Not authorized to assign marks for this subject" });
     }
-    const newMarks = new Marks({ studentId, teacherId: req.teacher._id, subject, marksObtained, totalMarks, examType });
+    const newMarks = new Marks({ studentId, teacherId: req.teacher._id, subject, marksObtained, totalMarks, examType, semester });
     await newMarks.save();
     res.status(201).json({ message: "Marks added successfully" });
   } catch (error) {
