@@ -93,7 +93,7 @@ web.use(
     },
     credentials: true, // ✅ Allow cookies & authentication headers
     methods: "GET,POST,PUT,DELETE,OPTIONS", // ✅ Allow necessary HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization", "X-Admin-ID"], // ✅ Allow important headers
+    allowedHeaders: ["Content-Type", "Authorization", "X-Admin-ID","X-Requested-With", "Accept", "adminid", "teacherid"], // ✅ Allow important headers
     preflightContinue: false, // ✅ Prevent CORS preflight requests from continuing to the next middleware
     optionsSuccessStatus: 204, // ✅ Return a successful status for preflight requests (204 is a typical success status for OPTIONS)
   })
