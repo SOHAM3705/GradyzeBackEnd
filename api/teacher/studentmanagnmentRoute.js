@@ -45,12 +45,18 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
         continue;
       }
 
+      // Use a composite key for year and division
+      const key = `${subject.year}-${subject.division}`;
+      if (!studentData[key]) {
+        studentData[key] = [];
+      }
+
       const students = await Student.find({
         year: subject.year,
         division: subject.division,
       });
 
-      studentData[subject.name] = students; // Store students under subject name
+      studentData[key].push(...students); // Store students under the composite key
     }
 
     console.log("Student Data:", studentData); // Debugging line
@@ -61,6 +67,7 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 

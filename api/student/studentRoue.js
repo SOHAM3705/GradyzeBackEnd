@@ -7,17 +7,11 @@ const Student = require("../../models/studentModel");
 
 const router = express.Router();
 
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  console.log("📌 Received Request Body:", req.body);
-
-  if (!email || !password) {
-    console.log("❌ Missing email or password");
-    return res.status(400).json({ message: "Email and password are required" });
-  }
-
+router.post("/student/login", async (req, res) => {
   try {
+    const { email, password } = req.body;
+
+    // 🔍 Find student by email
     const student = await Student.findOne({ email });
 
     if (!student) {
@@ -25,19 +19,28 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
+    // 🔍 Compare entered password with hashed password in DB
+    console.log("📌 Entered Password:", password);
+    console.log("📌 Stored Hashed Password:", student.password);
+
     const isMatch = await bcrypt.compare(password, student.password);
+    console.log("📌 Password Match:", isMatch);
+
     if (!isMatch) {
-      console.log("❌ Password mismatch for email:", email);
+      console.log("❌ Password mismatch");
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    console.log("✅ Login Successful:", student);
-    res.status(200).json({ message: "Login successful", student });
+    // ✅ If password matches, generate JWT and send response
+    const token = jwt.sign({ id: student._id }, "your_jwt_secret", { expiresIn: "1h" });
+
+    res.status(200).json({ message: "Login successful", token });
 
   } catch (error) {
-    console.error("❌ Server Error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Login Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 module.exports = router;
