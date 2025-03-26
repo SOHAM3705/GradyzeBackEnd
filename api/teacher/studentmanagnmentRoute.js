@@ -18,15 +18,16 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // ✅ Find the Subject Teacher & Assigned Subjects
+    // Find the Subject Teacher & Assigned Subjects
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isSubjectTeacher) {
       return res.status(403).json({ message: "Not authorized to fetch students" });
     }
 
     const subjects = teacher.assignedSubjects; // Get assigned subjects
+    console.log("Assigned Subjects:", subjects); // Debugging line
 
-    // ✅ Fetch students for each subject based on year & division
+    // Fetch students for each subject based on year & division
     const studentData = {};
     for (const subject of subjects) {
       const students = await Student.find({
@@ -37,12 +38,15 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
       studentData[subject.name] = students; // Store students under subject name
     }
 
+    console.log("Student Data:", studentData); // Debugging line
+
     res.status(200).json({ subjects, studentData });
   } catch (error) {
     console.error("Error fetching students for subjects:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 // Route to get teacher role details
 router.get("/teacher-role/:teacherId", async (req, res) => {
