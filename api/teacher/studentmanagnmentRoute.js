@@ -106,13 +106,14 @@ const sendEmail = async (email, password, name) => {
     console.error("❌ Error sending email:", error.response?.data || error.message);
   }
 };
-// ✅ Add Student API with Account Creation
 router.post("/add-student", async (req, res) => {
   try {
-    const { teacherId, rollNo, name, email } = req.body;
+    const { rollNo, name, email } = req.body;
+    const teacherId = req.headers.teacherid; // Extract from session storage in frontend
+    const adminId = req.headers.adminid; // Extract from session storage in frontend
 
     // ✅ Validate required fields
-    if (!teacherId || !rollNo || !name || !email) {
+    if (!teacherId || !adminId || !rollNo || !name || !email) {
       return res.status(400).json({ message: "All required fields must be provided." });
     }
 
@@ -142,12 +143,14 @@ router.post("/add-student", async (req, res) => {
       password: hashedPassword, // Store the hashed password
       year,
       division,
+      teacherId, // Store Teacher ID
+      adminId, // Store Admin ID
     });
 
     await newStudent.save();
 
     // ✅ Send Email with Credentials
-    await sendEmail(email,randomPassword,name);
+    await sendEmail(email, randomPassword, name);
 
     return res.status(201).json({ message: "Student added successfully & email sent!", student: newStudent });
 
@@ -156,6 +159,7 @@ router.post("/add-student", async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 });
+
 
 // ✅ Fetch Students for Class Teacher
 router.get("/students/:teacherId", async (req, res) => {
@@ -238,22 +242,24 @@ router.put("/update-student/:teacherId/:studentId", async (req, res) => {
 
 const upload = multer({ dest: "uploads/" });
 
-router.post("/import-students/:teacherId", upload.single("file"), async (req, res) => {
+// ✅ Import Students from Excel
+router.post("/import-students", upload.single("file"), async (req, res) => {
   try {
-    const { teacherId } = req.params;
     const file = req.file;
+    const teacherId = req.headers.teacherid; // Extract from session storage
+    const adminId = req.headers.adminid; // Extract from session storage
 
     if (!file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // ✅ Find the Teacher & Get Assigned Class
+    // ✅ Validate Teacher ID
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to import students" });
     }
 
-    const { year, division } = teacher.assignedClass; // ✅ Get year & division from teacher
+    const { year, division } = teacher.assignedClass; // ✅ Assign dynamically
 
     // ✅ Read Excel File
     const workbook = xlsx.readFile(file.path);
@@ -273,26 +279,36 @@ router.post("/import-students/:teacherId", upload.single("file"), async (req, re
       return res.status(400).json({ message: `Missing columns: ${missingColumns.join(", ")}` });
     }
 
-    // ✅ Insert Students with Assigned Year & Division
+    // ✅ Insert Students with Assigned Teacher & Admin
     const students = [];
     for (const row of data) {
+      // ✅ Generate a random password
+      const randomPassword = crypto.randomBytes(6).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
       students.push({
         rollNo: row.RollNo,
         name: row.Name,
         email: row.Email,
-        password: crypto.randomBytes(6).toString("hex"), // ✅ Auto-generate password
+        password: hashedPassword, // ✅ Store hashed password
         year, // ✅ Assign dynamically
         division, // ✅ Assign dynamically
+        teacherId, // ✅ Store Teacher ID
+        adminId, // ✅ Store Admin ID
       });
+
+      // ✅ Send Email with Credentials
+      await sendEmail(row.Email, randomPassword, row.Name);
     }
 
     await Student.insertMany(students);
-    res.status(201).json({ message: "Students imported successfully!", students });
+    res.status(201).json({ message: "Students imported successfully & emails sent!", students });
   } catch (error) {
     console.error("❌ Error importing students:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 

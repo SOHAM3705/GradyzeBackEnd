@@ -1,23 +1,12 @@
 const express = require("express");
-const mongoose = require("mongoose");
+const Marks = require("../../models/marksModel");
 const Student = require("../../models/studentModel");
 const Teacher = require("../../models/teacherModel");
 
 const router = express.Router();
 
-const marksSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true },
-  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true },
-  subject: { type: String, required: true },
-  marksObtained: { type: Number, required: true },
-  totalMarks: { type: Number, required: true },
-  examType: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
 
-const Marks = mongoose.model("Marks", marksSchema);
-
-// ✅ Middleware to check teacher role
+// Middleware to check teacher role
 async function checkTeacherRole(req, res, next) {
   try {
     const teacher = await Teacher.findById(req.body.teacherId);
@@ -29,7 +18,7 @@ async function checkTeacherRole(req, res, next) {
   }
 }
 
-// ✅ Fetch students based on class teacher's assigned class
+// Fetch students based on class teacher's assigned class
 router.get("/students", checkTeacherRole, async (req, res) => {
   try {
     const { year, division } = req.query;
@@ -45,7 +34,7 @@ router.get("/students", checkTeacherRole, async (req, res) => {
   }
 });
 
-// ✅ Add marks (Restricted to Subject Teachers)
+// Add marks (Restricted to Subject Teachers)
 router.post("/add-marks", checkTeacherRole, async (req, res) => {
   try {
     if (!req.teacher.isSubjectTeacher) {
@@ -64,7 +53,7 @@ router.post("/add-marks", checkTeacherRole, async (req, res) => {
   }
 });
 
-// ✅ Get marks for a student (Visible only to respective teachers)
+// Get marks for a student (Visible only to respective teachers)
 router.get("/student-marks/:studentId", checkTeacherRole, async (req, res) => {
   try {
     const studentMarks = await Marks.find({ studentId: req.params.studentId });
@@ -77,7 +66,7 @@ router.get("/student-marks/:studentId", checkTeacherRole, async (req, res) => {
   }
 });
 
-// ✅ Update marks (Only Subject Teachers can update their assigned subject's marks)
+// Update marks (Only Subject Teachers can update their assigned subject's marks)
 router.put("/update-marks/:marksId", checkTeacherRole, async (req, res) => {
   try {
     if (!req.teacher.isSubjectTeacher) {
@@ -94,7 +83,7 @@ router.put("/update-marks/:marksId", checkTeacherRole, async (req, res) => {
   }
 });
 
-// ✅ Delete marks (Only Subject Teachers can delete their own assigned marks)
+// Delete marks (Only Subject Teachers can delete their own assigned marks)
 router.delete("/delete-marks/:marksId", checkTeacherRole, async (req, res) => {
   try {
     if (!req.teacher.isSubjectTeacher) {

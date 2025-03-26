@@ -16,6 +16,8 @@ const { initGridFS } = require('./config/girdfs');
 const teachersyllabiRoute = require("./api/teacher/teachersyllabiRoute"); // Assuming you create the teacher syllabi route
 const teacherNotificationRoute = require("./api/teacher/teachernotificationRoute"); // Assuming you create the teacher notification route
 const studentmanagementRoute = require("./api/teacher/studentmanagnmentRoute"); // Assuming you create the student management route
+const student = require("./api/student/studentRoue"); // Assuming you create the student management route
+const teachermarks = require("./api/teacher/teachermarksRoute"); // Assuming you create the teacher marks route
 
 
 const web = express();
@@ -124,6 +126,9 @@ web.use('/api/notifications', notificationRoutes);
 web.use("/api/teachersyllabi", teachersyllabiRoute);
 web.use("/api/teachernotifications", teacherNotificationRoute);
 web.use("/api/studentmanagement", studentmanagementRoute);
+
+web.use("/api/student", student);
+web.use("/api/teachermarks", teachermarks);
 
 
 
