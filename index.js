@@ -129,7 +129,7 @@ web.use("/api/studentmanagement", studentmanagementRoute);
 
 web.use("/api/student", student);
 web.use("/api/teachermarks", teachermarks);
-web.use("/api/setting", adminsettingRoute);
+web.use("/api/adminsetting", adminsettingRoute);
 
 
 
