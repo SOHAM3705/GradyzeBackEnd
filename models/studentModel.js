@@ -8,7 +8,7 @@ const studentSchema = new mongoose.Schema({
   password: { type: String, required: true }, // Hashed password
   year: { type: String, required: true },
   division: { type: String, required: true },
-  semester: { type: Number, required: true }, // Add the semester field
+  semester: { type: Number, required: true, min: 1, max: 8 },
   adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Linking Admin
   teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true }, // Linking Teacher
   createdAt: { type: Date, default: Date.now },

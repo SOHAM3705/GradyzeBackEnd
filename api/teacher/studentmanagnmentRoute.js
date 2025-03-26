@@ -17,22 +17,26 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
+    // ✅ Find the Subject Teacher & Get Assigned Subjects
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isSubjectTeacher) {
       return res.status(403).json({ message: "Not authorized to fetch students" });
     }
 
-    const subjects = teacher.assignedSubjects;
+    const subjects = teacher.assignedSubjects; // ✅ Get assigned subjects with semester
 
+    // ✅ Fetch students for each subject based on year, division, and semester
     const studentData = {};
     for (const subject of subjects) {
       const students = await Student.find({
         year: subject.year,
         division: subject.division,
-        semester: subject.semester, // Include semester in the query
       });
 
-      studentData[subject.name] = students;
+      studentData[subject.name] = {
+        semester: subject.semester, // ✅ Fetch semester from Teacher Database
+        students: students,
+      };
     }
 
     res.status(200).json({ subjects, studentData });
@@ -41,6 +45,7 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 router.get("/teacher-role/:teacherId", async (req, res) => {
   try {
@@ -132,47 +137,53 @@ const sendEmail = async (email, password, name) => {
 
 router.post("/add-student", async (req, res) => {
   try {
-    const { rollNo, name, email, year, division, semester } = req.body;
+    const { rollNo, name, email } = req.body;
     const teacherId = req.headers.teacherid;
     const adminId = req.headers.adminid;
 
-    if (!teacherId || !adminId || !rollNo || !name || !email || !semester) {
+    if (!teacherId || !adminId || !rollNo || !name || !email) {
       return res.status(400).json({ message: "All required fields must be provided." });
     }
 
+    // ✅ Find the Teacher in `teacheraccount` model
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {
       return res.status(403).json({ message: "Teacher not found" });
     }
 
-    let assignedYear = year;
-    let assignedDivision = division;
-    let assignedSemester = semester;
+    let assignedYear, assignedDivision, assignedSemester;
 
     if (teacher.isClassTeacher) {
-      assignedYear = year || teacher.assignedClass.year;
-      assignedDivision = division || teacher.assignedClass.division;
-      assignedSemester = semester || teacher.assignedClass.semester;
+      // ✅ Fetch semester from Class Teacher's assigned class
+      assignedYear = teacher.assignedClass.year;
+      assignedDivision = teacher.assignedClass.division;
+      assignedSemester = teacher.assignedClass.semester; // ✅ Fetch semester from teacheraccount model
     } else if (teacher.isSubjectTeacher) {
-      const validSubject = teacher.assignedSubjects.some(
-        (subject) => subject.year === year && subject.division === division && subject.semester === semester
+      // ✅ Fetch semester from Subject Teacher's assigned subjects
+      const subject = teacher.assignedSubjects.find(
+        (subj) => subj.year === assignedYear && subj.division === assignedDivision
       );
 
-      if (!validSubject) {
+      if (!subject) {
         return res.status(403).json({ message: "Not authorized to add students to this class" });
       }
+
+      assignedSemester = subject.semester;
     } else {
       return res.status(403).json({ message: "Not authorized to add students" });
     }
 
+    // ✅ Check if student already exists
     let student = await Student.findOne({ email });
     if (student) {
       return res.status(400).json({ message: "Student with this email already exists." });
     }
 
+    // ✅ Generate a random password
     const randomPassword = crypto.randomBytes(6).toString("hex");
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
+    // ✅ Create and save new student
     const newStudent = new Student({
       rollNo,
       name,
@@ -180,22 +191,23 @@ router.post("/add-student", async (req, res) => {
       password: hashedPassword,
       year: assignedYear,
       division: assignedDivision,
-      semester: assignedSemester, // Include semester
+      semester: assignedSemester, // ✅ Now fetched from teacheraccount model
       teacherId,
       adminId,
     });
 
     await newStudent.save();
-
     await sendEmail(email, randomPassword, name);
 
-    return res.status(201).json({ message: "Student added successfully & email sent!", student: newStudent });
+    return res.status(201).json({ message: "Student added successfully!", student: newStudent });
 
   } catch (error) {
     console.error("Error adding student:", error);
     return res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 });
+
+
 
 router.get("/students/:teacherId", async (req, res) => {
   try {
