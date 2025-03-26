@@ -238,7 +238,6 @@ router.put("/update-student/:teacherId/:studentId", async (req, res) => {
 
 const upload = multer({ dest: "uploads/" });
 
-// ✅ API to Import Students from Excel
 router.post("/import-students/:teacherId", upload.single("file"), async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -248,57 +247,65 @@ router.post("/import-students/:teacherId", upload.single("file"), async (req, re
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // ✅ Find Class Teacher
+    // ✅ Find the Teacher & Get Assigned Class
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to import students" });
     }
 
-    const { year, division } = teacher.assignedClass;
+    const { year, division } = teacher.assignedClass; // ✅ Get year & division from teacher
 
     // ✅ Read Excel File
     const workbook = xlsx.readFile(file.path);
     const sheetName = workbook.SheetNames[0];
     const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    // ✅ Validate & Insert Students
+    if (data.length === 0) {
+      return res.status(400).json({ message: "Empty Excel file or incorrect format." });
+    }
+
+    // ✅ Check Required Columns
+    const requiredColumns = ["RollNo", "Name", "Email"];
+    const fileColumns = Object.keys(data[0]).map(col => col.trim());
+
+    const missingColumns = requiredColumns.filter(col => !fileColumns.includes(col));
+    if (missingColumns.length > 0) {
+      return res.status(400).json({ message: `Missing columns: ${missingColumns.join(", ")}` });
+    }
+
+    // ✅ Insert Students with Assigned Year & Division
     const students = [];
     for (const row of data) {
-      if (!row.RollNo || !row.Name || !row.Email) {
-        return res.status(400).json({ message: "Invalid Excel format. Must include RollNo, Name, and Email" });
-      }
-
-      const newStudent = new Student({
+      students.push({
         rollNo: row.RollNo,
         name: row.Name,
         email: row.Email,
-        year,
-        division,
+        password: crypto.randomBytes(6).toString("hex"), // ✅ Auto-generate password
+        year, // ✅ Assign dynamically
+        division, // ✅ Assign dynamically
       });
-
-      students.push(newStudent);
     }
 
     await Student.insertMany(students);
     res.status(201).json({ message: "Students imported successfully!", students });
   } catch (error) {
-    console.error("Error importing students:", error);
+    console.error("❌ Error importing students:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 router.get("/generate-report/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // ✅ Ensure the teacher exists
+    // ✅ Find Teacher & Assigned Class
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to generate report" });
     }
 
-    // ✅ Fetch students from assigned class
     const { year, division } = teacher.assignedClass;
     const students = await Student.find({ year, division });
 
@@ -306,43 +313,73 @@ router.get("/generate-report/:teacherId", async (req, res) => {
       return res.status(404).json({ message: "No students found to generate report" });
     }
 
-    // ✅ Create reports directory if it doesn’t exist
+    // ✅ Create reports directory if missing
     const reportsDir = path.join(__dirname, "reports");
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
-    // ✅ Generate PDF report
+    // ✅ PDF File Path
     const filePath = path.join(reportsDir, `student_report_${year}_${division}.pdf`);
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ margin: 50 });
+
+    // ✅ Stream PDF to file
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // ✅ Add Title
-    doc.fontSize(18).text(`Student Report - ${year} ${division}`, { align: "center" });
-    doc.moveDown();
+    // ✅ HEADER SECTION
+    doc
+      .fontSize(14)
+      .text("PIMPRI CHINCHWAD EDUCATION TRUST'S", { align: "center" })
+      .moveDown(0.5);
+    doc.fontSize(12).text("Pimpri Chinchwad College of Engineering & Research, Ravet, Pune", { align: "center" });
+    doc.fontSize(10).text("IQAC PCCOER", { align: "center" }).moveDown(1);
+    
+    doc.text(`Academic Year: 2024 – 25`, { align: "left" });
+    doc.text(`Term: I`, { align: "left" });
+    doc.text(`Evaluation Sheet – Internal Exam`, { align: "left" });
+    doc.text(`Department: Computer Engineering`, { align: "left" });
+    doc.text(`Class: ${year}`, { align: "left" });
+    doc.text(`Division: ${division}`, { align: "left" });
+    doc.text(`Date of Exam: 24/08/24`, { align: "left" });
+    doc.text(`Subject Name: Computer Graphics`, { align: "left" });
+    doc.text(`Subject Code: 210244`, { align: "left" }).moveDown(1);
 
-    // ✅ Table Header
-    doc.fontSize(12).text("Roll No", 50, doc.y);
-    doc.text("Name", 150, doc.y);
-    doc.text("Email", 300, doc.y);
-    doc.moveDown();
+    // ✅ TABLE HEADER (Roll No, Name, Email)
+    doc
+      .fontSize(12)
+      .text("Roll No", 50, doc.y, { continued: true })
+      .text("Name", 150, doc.y, { continued: true })
+      .text("Email", 300)
+      .moveDown(0.5);
+    
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke(); // Draw a line separator
 
-    // ✅ Student Data
+    // ✅ STUDENT DATA (Without Marks)
     students.forEach((student) => {
-      doc.text(student.rollNo.toString(), 50, doc.y);
-      doc.text(student.name, 150, doc.y);
-      doc.text(student.email, 300, doc.y);
-      doc.moveDown();
+      doc
+        .fontSize(10)
+        .text(student.rollNo.toString(), 50, doc.y, { continued: true })
+        .text(student.name, 150, doc.y, { continued: true })
+        .text(student.email, 300)
+        .moveDown(0.5);
     });
+
+    doc.moveDown(2);
+
+    // ✅ FOOTER - TEACHER NAME & SIGNATURE
+    doc.text(`Name of Subject Teacher: ${teacher.name || "Not Assigned"}`, { align: "left" });
+    doc.text(`Signature: _____________________`, { align: "left" });
 
     doc.end();
 
+    // ✅ Send File for Download
     stream.on("finish", () => {
       res.download(filePath, `Student_Report_${year}_${division}.pdf`, () => {
         fs.unlinkSync(filePath); // ✅ Delete file after download
       });
     });
+
   } catch (error) {
     console.error("Error generating report:", error);
     res.status(500).json({ message: "Internal Server Error" });
