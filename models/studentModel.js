@@ -9,7 +9,7 @@ const studentSchema = new mongoose.Schema({
   year: { type: String, required: true },
   division: { type: String, required: true },
   adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Linking Admin
-  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "teachers", required: true }, // Linking Teacher
+  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true }, // Linking Teacher
   createdAt: { type: Date, default: Date.now },
 });
 

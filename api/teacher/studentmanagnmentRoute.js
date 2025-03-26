@@ -20,7 +20,10 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
 
     // Find the Subject Teacher & Assigned Subjects
     const teacher = await Teacher.findById(teacherId);
-    if (!teacher || !teacher.isSubjectTeacher) {
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+    if (!teacher.isSubjectTeacher) {
       return res.status(403).json({ message: "Not authorized to fetch students" });
     }
 
@@ -56,6 +59,7 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 
