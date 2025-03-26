@@ -1,7 +1,8 @@
+// Import necessary modules
 const express = require("express");
 const router = express.Router();
 const Teacher = require("../../models/teacheraccount");
-const Student = require("../../models/studentModel");
+const Student = require("../../models/studentModel.js");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const emailContent = require("../../utils/newaccount");
@@ -13,13 +14,42 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 
+router.get("/students-by-subject/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
 
+    // ✅ Find the Subject Teacher & Assigned Subjects
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isSubjectTeacher) {
+      return res.status(403).json({ message: "Not authorized to fetch students" });
+    }
 
+    const subjects = teacher.assignedSubjects; // Get assigned subjects
 
+    // ✅ Fetch students for each subject based on year & division
+    const studentData = {};
+    for (const subject of subjects) {
+      const students = await Student.find({
+        year: subject.year,
+        division: subject.division,
+      });
+
+      studentData[subject.name] = students; // Store students under subject name
+    }
+
+    res.status(200).json({ subjects, studentData });
+  } catch (error) {
+    console.error("Error fetching students for subjects:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// Route to get teacher role details
 router.get("/teacher-role/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
+    // Fetch teacher details from database
     const teacher = await Teacher.findById(teacherId);
 
     if (!teacher) {
@@ -36,10 +66,12 @@ router.get("/teacher-role/:teacherId", async (req, res) => {
   }
 });
 
+// ✅ Route to fetch class details (for Class Teacher)
 router.get("/class-details/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
+    // Find teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(404).json({ message: "Class Teacher not found" });
@@ -50,7 +82,6 @@ router.get("/class-details/:teacherId", async (req, res) => {
       department: teacher.department,
       year: teacher.assignedClass?.year,
       division: teacher.assignedClass?.division,
-      semester: teacher.assignedClass?.semester, // Include semester
     });
   } catch (error) {
     console.error("Error fetching class details:", error);
@@ -58,17 +89,19 @@ router.get("/class-details/:teacherId", async (req, res) => {
   }
 });
 
+// ✅ Route to fetch subjects assigned (for Subject Teacher)
 router.get("/subject-details/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
+    // Find teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isSubjectTeacher) {
       return res.status(404).json({ message: "Subject Teacher not found" });
     }
 
     res.json({
-      subjects: teacher.subjects,
+      subjects: teacher.subjects, // Returns all assigned subjects
     });
   } catch (error) {
     console.error("Error fetching subject details:", error);
@@ -103,47 +136,39 @@ const sendEmail = async (email, password, name) => {
     console.error("❌ Error sending email:", error.response?.data || error.message);
   }
 };
-
 router.post("/add-student", async (req, res) => {
   try {
-    const { rollNo, name, email } = req.body;
-    const teacherId = req.headers.teacherid;
-    const adminId = req.headers.adminid;
+    const { rollNo, name, email, year, division } = req.body;
+    const teacherId = req.headers.teacherid; // Extract from frontend session storage
+    const adminId = req.headers.adminid; // Extract from frontend session storage
 
+    // ✅ Validate required fields
     if (!teacherId || !adminId || !rollNo || !name || !email) {
       return res.status(400).json({ message: "All required fields must be provided." });
     }
 
-    // ✅ Find the Teacher in `teacheraccount` model
+    // ✅ Find the Teacher (Class Teacher or Subject Teacher)
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {
       return res.status(403).json({ message: "Teacher not found" });
     }
 
-    let assignedYear, assignedDivision, assignedSemester;
+    let assignedYear = year;
+    let assignedDivision = division;
 
     if (teacher.isClassTeacher) {
-      // ✅ Fetch `year` and `division` from assignedClass
-      assignedYear = teacher.assignedClass.year;
-      assignedDivision = teacher.assignedClass.division;
-
-      // ✅ Fetch `section` as `semester`
-      assignedSemester = teacher.assignedClass.section; 
-
-      if (!assignedSemester) {
-        return res.status(400).json({ message: "Semester (section) is missing for this Class Teacher." });
-      }
+      // ✅ Use Class Teacher's assigned class if year & division are missing
+      assignedYear = year || teacher.assignedClass.year;
+      assignedDivision = division || teacher.assignedClass.division;
     } else if (teacher.isSubjectTeacher) {
-      // ✅ Fetch semester from Subject Teacher's assigned subjects
-      const subject = teacher.assignedSubjects.find(
-        (subj) => subj.year === assignedYear && subj.division === assignedDivision
+      // ✅ Ensure Subject Teacher is adding students to a valid assigned subject
+      const validSubject = teacher.assignedSubjects.some(
+        (subject) => subject.year === year && subject.division === division
       );
 
-      if (!subject) {
+      if (!validSubject) {
         return res.status(403).json({ message: "Not authorized to add students to this class" });
       }
-
-      assignedSemester = subject.semester; // ✅ Get semester from `assignedSubjects`
     } else {
       return res.status(403).json({ message: "Not authorized to add students" });
     }
@@ -155,7 +180,7 @@ router.post("/add-student", async (req, res) => {
     }
 
     // ✅ Generate a random password
-    const randomPassword = crypto.randomBytes(6).toString("hex");
+    const randomPassword = crypto.randomBytes(6).toString("hex"); // Generates a 6-character password
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
     // ✅ Create and save new student
@@ -163,18 +188,19 @@ router.post("/add-student", async (req, res) => {
       rollNo,
       name,
       email,
-      password: hashedPassword,
+      password: hashedPassword, // Store the hashed password
       year: assignedYear,
       division: assignedDivision,
-      semester: assignedSemester, // ✅ Now fetched correctly
-      teacherId,
-      adminId,
+      teacherId, // Store Teacher ID
+      adminId, // Store Admin ID
     });
 
     await newStudent.save();
+
+    // ✅ Send Email with Credentials
     await sendEmail(email, randomPassword, name);
 
-    return res.status(201).json({ message: "Student added successfully!", student: newStudent });
+    return res.status(201).json({ message: "Student added successfully & email sent!", student: newStudent });
 
   } catch (error) {
     console.error("Error adding student:", error);
@@ -184,17 +210,20 @@ router.post("/add-student", async (req, res) => {
 
 
 
+// ✅ Fetch Students for Class Teacher
 router.get("/students/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
+    // ✅ Find Class Teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to view students" });
     }
 
-    const { year, division, semester } = teacher.assignedClass;
-    const students = await Student.find({ year, division, semester });
+    // ✅ Fetch students based on assigned class
+    const { year, division } = teacher.assignedClass;
+    const students = await Student.find({ year, division });
 
     res.status(200).json({ students });
   } catch (error) {
@@ -207,11 +236,13 @@ router.delete("/delete-student/:teacherId/:studentId", async (req, res) => {
   try {
     const { teacherId, studentId } = req.params;
 
+    // ✅ Find Class Teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to delete students" });
     }
 
+    // ✅ Find and delete student
     const student = await Student.findById(studentId);
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
@@ -229,13 +260,15 @@ router.delete("/delete-student/:teacherId/:studentId", async (req, res) => {
 router.put("/update-student/:teacherId/:studentId", async (req, res) => {
   try {
     const { teacherId, studentId } = req.params;
-    const { rollNo, name, email, semester } = req.body;
+    const { rollNo, name, email } = req.body;
 
+    // ✅ Find the Class Teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to update students" });
     }
 
+    // ✅ Find the student in the teacher’s assigned class
     const { year, division } = teacher.assignedClass;
     let student = await Student.findOne({ _id: studentId, year, division });
 
@@ -243,10 +276,10 @@ router.put("/update-student/:teacherId/:studentId", async (req, res) => {
       return res.status(404).json({ message: "Student not found in this class" });
     }
 
+    // ✅ Update student details
     student.rollNo = rollNo || student.rollNo;
     student.name = name || student.name;
     student.email = email || student.email;
-    student.semester = semester || student.semester; // Update semester
     await student.save();
 
     res.status(200).json({ message: "Student updated successfully!", student });
@@ -258,43 +291,24 @@ router.put("/update-student/:teacherId/:studentId", async (req, res) => {
 
 const upload = multer({ dest: "uploads/" });
 
+// ✅ Import Students from Excel
 router.post("/import-students", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
-    const teacherId = req.headers.teacherid;
-    const adminId = req.headers.adminid;
+    const teacherId = req.headers.teacherid; // Extract from session storage
+    const adminId = req.headers.adminid; // Extract from session storage
 
     if (!file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // ✅ Find the Teacher
+    // ✅ Validate Teacher ID
     const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      return res.status(403).json({ message: "Teacher not found" });
-    }
-
-    let assignedYear, assignedDivision, assignedSemester;
-
-    if (teacher.isClassTeacher) {
-      // ✅ Fetch `year` and `division` from assignedClass
-      assignedYear = teacher.assignedClass.year;
-      assignedDivision = teacher.assignedClass.division;
-
-      // ✅ Fetch `section` as `semester`
-      assignedSemester = teacher.assignedClass.section;
-    } else if (teacher.isSubjectTeacher) {
-      // ✅ Get semester from assigned subjects
-      assignedYear = teacher.assignedSubjects[0]?.year;
-      assignedDivision = teacher.assignedSubjects[0]?.division;
-      assignedSemester = teacher.assignedSubjects[0]?.semester;
-    } else {
+    if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to import students" });
     }
 
-    if (!assignedSemester) {
-      return res.status(400).json({ message: "Semester information is missing for this teacher." });
-    }
+    const { year, division } = teacher.assignedClass; // ✅ Assign dynamically
 
     // ✅ Read Excel File
     const workbook = xlsx.readFile(file.path);
@@ -314,9 +328,10 @@ router.post("/import-students", upload.single("file"), async (req, res) => {
       return res.status(400).json({ message: `Missing columns: ${missingColumns.join(", ")}` });
     }
 
-    // ✅ Insert Students
+    // ✅ Insert Students with Assigned Teacher & Admin
     const students = [];
     for (const row of data) {
+      // ✅ Generate a random password
       const randomPassword = crypto.randomBytes(6).toString("hex");
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -324,14 +339,14 @@ router.post("/import-students", upload.single("file"), async (req, res) => {
         rollNo: row.RollNo,
         name: row.Name,
         email: row.Email,
-        password: hashedPassword,
-        year: assignedYear,
-        division: assignedDivision,
-        semester: assignedSemester, // ✅ Fetch semester from teacheraccount model
-        teacherId,
-        adminId,
+        password: hashedPassword, // ✅ Store hashed password
+        year, // ✅ Assign dynamically
+        division, // ✅ Assign dynamically
+        teacherId, // ✅ Store Teacher ID
+        adminId, // ✅ Store Admin ID
       });
 
+      // ✅ Send Email with Credentials
       await sendEmail(row.Email, randomPassword, row.Name);
     }
 
@@ -343,116 +358,69 @@ router.post("/import-students", upload.single("file"), async (req, res) => {
   }
 });
 
-router.get("/students-by-subject/:teacherId", async (req, res) => {
-  try {
-    const { teacherId } = req.params;
 
-    // ✅ Find the Teacher
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      return res.status(403).json({ message: "Teacher not found" });
-    }
-
-    const studentData = {};
-    let subjects = [];
-
-    if (teacher.isClassTeacher) {
-      // ✅ Fetch class teacher's assigned class details
-      const { year, division, section } = teacher.assignedClass;
-      const students = await Student.find({ year, division });
-
-      studentData["Class Teacher"] = {
-        semester: section, // ✅ Fetch `section` as `semester`
-        students,
-      };
-
-      subjects.push({
-        name: "Class Teacher",
-        year,
-        division,
-        semester: section,
-      });
-    }
-
-    if (teacher.isSubjectTeacher) {
-      // ✅ Fetch subject teacher's assigned subjects
-      subjects = [...subjects, ...teacher.assignedSubjects];
-
-      for (const subject of teacher.assignedSubjects) {
-        const students = await Student.find({
-          year: subject.year,
-          division: subject.division,
-        });
-
-        studentData[subject.name] = {
-          semester: subject.semester, // ✅ Fetch semester from assignedSubjects
-          students,
-        };
-      }
-    }
-
-    res.status(200).json({ subjects, studentData });
-  } catch (error) {
-    console.error("Error fetching students for subjects:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
 
 
 router.get("/generate-report/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
+    // ✅ Find Teacher & Assigned Class
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to generate report" });
     }
 
-    const { year, division, semester } = teacher.assignedClass;
-    const students = await Student.find({ year, division, semester });
+    const { year, division } = teacher.assignedClass;
+    const students = await Student.find({ year, division });
 
     if (students.length === 0) {
       return res.status(404).json({ message: "No students found to generate report" });
     }
 
+    // ✅ Create reports directory if missing
     const reportsDir = path.join(__dirname, "reports");
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
-    const filePath = path.join(reportsDir, `student_report_${year}_${division}_${semester}.pdf`);
+    // ✅ PDF File Path
+    const filePath = path.join(reportsDir, `student_report_${year}_${division}.pdf`);
     const doc = new PDFDocument({ margin: 50 });
 
+    // ✅ Stream PDF to file
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
+    // ✅ HEADER SECTION
     doc
       .fontSize(14)
       .text("PIMPRI CHINCHWAD EDUCATION TRUST'S", { align: "center" })
       .moveDown(0.5);
     doc.fontSize(12).text("Pimpri Chinchwad College of Engineering & Research, Ravet, Pune", { align: "center" });
     doc.fontSize(10).text("IQAC PCCOER", { align: "center" }).moveDown(1);
-
+    
     doc.text(`Academic Year: 2024 – 25`, { align: "left" });
     doc.text(`Term: I`, { align: "left" });
     doc.text(`Evaluation Sheet – Internal Exam`, { align: "left" });
     doc.text(`Department: Computer Engineering`, { align: "left" });
     doc.text(`Class: ${year}`, { align: "left" });
     doc.text(`Division: ${division}`, { align: "left" });
-    doc.text(`Semester: ${semester}`, { align: "left" }); // Include semester
     doc.text(`Date of Exam: 24/08/24`, { align: "left" });
     doc.text(`Subject Name: Computer Graphics`, { align: "left" });
     doc.text(`Subject Code: 210244`, { align: "left" }).moveDown(1);
 
+    // ✅ TABLE HEADER (Roll No, Name, Email)
     doc
       .fontSize(12)
       .text("Roll No", 50, doc.y, { continued: true })
       .text("Name", 150, doc.y, { continued: true })
       .text("Email", 300)
       .moveDown(0.5);
+    
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke(); // Draw a line separator
 
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-
+    // ✅ STUDENT DATA (Without Marks)
     students.forEach((student) => {
       doc
         .fontSize(10)
@@ -464,14 +432,16 @@ router.get("/generate-report/:teacherId", async (req, res) => {
 
     doc.moveDown(2);
 
+    // ✅ FOOTER - TEACHER NAME & SIGNATURE
     doc.text(`Name of Subject Teacher: ${teacher.name || "Not Assigned"}`, { align: "left" });
     doc.text(`Signature: _____________________`, { align: "left" });
 
     doc.end();
 
+    // ✅ Send File for Download
     stream.on("finish", () => {
-      res.download(filePath, `Student_Report_${year}_${division}_${semester}.pdf`, () => {
-        fs.unlinkSync(filePath);
+      res.download(filePath, `Student_Report_${year}_${division}.pdf`, () => {
+        fs.unlinkSync(filePath); // ✅ Delete file after download
       });
     });
 
@@ -480,5 +450,6 @@ router.get("/generate-report/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 module.exports = router;
