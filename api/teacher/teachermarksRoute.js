@@ -1,7 +1,7 @@
 const express = require("express");
-const Marks = require("../../models/marksModel");
+const Marks = require("../../models/marksschema");
 const Student = require("../../models/studentModel");
-const Teacher = require("../../models/teacherModel");
+const Teacher = require("../../models/teacheraccount");
 
 const router = express.Router();
 
