@@ -14,6 +14,7 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 
+
 router.get("/students-by-subject/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -27,7 +28,8 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
       return res.status(403).json({ message: "Not authorized to fetch students" });
     }
 
-    const subjects = teacher.assignedSubjects; // Get assigned subjects
+    const subjects = teacher.subjects; // Access the subjects array
+    console.log("Teacher Object:", teacher); // Debugging line
     console.log("Assigned Subjects:", subjects); // Debugging line
 
     // Check if subjects is defined and is an array
@@ -59,6 +61,7 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 
