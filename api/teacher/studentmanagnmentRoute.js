@@ -27,9 +27,19 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
     const subjects = teacher.assignedSubjects; // Get assigned subjects
     console.log("Assigned Subjects:", subjects); // Debugging line
 
+    // Check if subjects is defined and is an array
+    if (!Array.isArray(subjects)) {
+      return res.status(400).json({ message: "Assigned subjects are not defined or not an array" });
+    }
+
     // Fetch students for each subject based on year & division
     const studentData = {};
     for (const subject of subjects) {
+      if (!subject.year || !subject.division) {
+        console.error("Subject missing year or division:", subject);
+        continue;
+      }
+
       const students = await Student.find({
         year: subject.year,
         division: subject.division,
@@ -46,6 +56,7 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 // Route to get teacher role details

@@ -8,8 +8,8 @@ const studentSchema = new mongoose.Schema({
   password: { type: String, required: true }, // Hashed password
   year: { type: String, required: true },
   division: { type: String, required: true },
-  adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Linking Admin
-  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true }, // Linking Teacher
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Linking Admin
+  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "teachers", required: true }, // Linking Teacher
   createdAt: { type: Date, default: Date.now },
 });
 

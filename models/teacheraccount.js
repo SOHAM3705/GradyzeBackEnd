@@ -29,7 +29,7 @@ const teacherSchema = new mongoose.Schema({
   // ✅ Subjects (only if isSubjectTeacher is true)
   subjects: [subjectSchema],
 
-  adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, 
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, 
   createdAt: { type: Date, default: Date.now } 
 });
 
