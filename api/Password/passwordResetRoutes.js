@@ -1,78 +1,93 @@
 const express = require("express");
 const router = express.Router();
-const Admin = require("../../models/useradmin"); // Adjust path based on your structure
+const Admin = require("../../models/useradmin"); // Adjust the path if needed
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
-const bcrypt = require("bcrypt"); // Import bcrypt for hashing passwords
-const { resetPasswordEmail } = require("../../utils/emailTemplates"); // Import email template
-const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs"); // Changed bcrypt to bcryptjs (better compatibility)
+const dotenv = require("dotenv");
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; // Ensure frontend URL is defined
+dotenv.config();
 
-// Route to verify email and send reset link
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; 
+
+// ✅ Step 1: Verify Email & Send Reset Link
 router.post("/verify-email", async (req, res) => {
-    const { email } = req.body;
-
     try {
-        const user = await Admin.findOne({ email });
-        if (!user) return res.status(400).json({ message: "Email not found" });
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: "Email is required" });
 
-        // Generate token (expires in 30 minutes)
+        // 🔍 Check if user exists
+        const user = await Admin.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // 🔑 Generate token valid for 30 minutes
         const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
         const resetLink = `${FRONTEND_URL}/change-password?token=${token}`;
 
-        // Generate email content
-        const emailContent = resetPasswordEmail(user.name, resetLink);
+        // 📧 Send email via Resend API
+        const emailResponse = await axios.post(
+            "https://api.resend.com/emails",
+            {
+                from: "support@gradyze.com", // Ensure this email is verified in Resend
+                to: email,
+                subject: "Reset Your Password",
+                html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 30 minutes.</p>`,
+            },
+            {
+                headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
+            }
+        );
 
-        // Send email via Resend API
-        await axios.post("https://api.resend.com/emails", {
-            from: "support@gradyze.com", // Ensure this email is verified in Resend
-            to: email,
-            subject: "Reset Your Password",
-            html: emailContent,
-        }, {
-            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
-        });
+        if (emailResponse.status !== 200) {
+            throw new Error("Failed to send email");
+        }
 
-        res.json({ message: "Verification email sent successfully" });
-    } catch {
-        res.status(500).json({ message: "Internal Server Error" });
+        res.status(200).json({ message: "Verification email sent successfully" });
+    } catch (error) {
+        console.error("Error sending reset email:", error);
+        res.status(500).json({ message: "Failed to send reset link" });
     }
 });
 
-// Route to change password
+// ✅ Step 2: Reset Password
 router.post("/change-password", async (req, res) => {
-    const { token, newPassword, confirmPassword } = req.body;
-
-    // Check if passwords match
-    if (newPassword !== confirmPassword) {
-        return res.status(400).json({ message: "Passwords do not match" });
-    }
-
     try {
-        // Verify JWT token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await Admin.findOne({ email: decoded.email });
+        const { token, newPassword, confirmPassword } = req.body;
 
-        if (!user) {
+        // 🔍 Validate input
+        if (!token || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "Passwords do not match" });
+        }
+
+        // 🔑 Verify the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (!decoded || !decoded.email) {
             return res.status(400).json({ message: "Invalid or expired token" });
         }
 
-        // Hash and update password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await Admin.findOneAndUpdate(
-            { email: decoded.email },
-            { $set: { password: hashedPassword } },
-            { new: true }
-        );
+        // 🔍 Find user
+        const user = await Admin.findOne({ email: decoded.email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
-        res.json({ message: "Password updated successfully" });
+        // 🔒 Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // 🔄 Update user password
+        await Admin.updateOne({ email: decoded.email }, { $set: { password: hashedPassword } });
+
+        res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
+        console.error("Password reset error:", error);
         if (error.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
         }
-
-        res.status(400).json({ message: "Invalid or expired token" });
+        res.status(500).json({ message: "Failed to reset password" });
     }
 });
 
