@@ -138,22 +138,40 @@ const sendEmail = async (email, password, name) => {
 };
 router.post("/add-student", async (req, res) => {
   try {
-    const { rollNo, name, email } = req.body;
-    const teacherId = req.headers.teacherid; // Extract from session storage in frontend
-    const adminId = req.headers.adminid; // Extract from session storage in frontend
+    const { rollNo, name, email, year, division } = req.body;
+    const teacherId = req.headers.teacherid; // Extract from frontend session storage
+    const adminId = req.headers.adminid; // Extract from frontend session storage
 
     // ✅ Validate required fields
     if (!teacherId || !adminId || !rollNo || !name || !email) {
       return res.status(400).json({ message: "All required fields must be provided." });
     }
 
-    // ✅ Find the Class Teacher
+    // ✅ Find the Teacher (Class Teacher or Subject Teacher)
     const teacher = await Teacher.findById(teacherId);
-    if (!teacher || !teacher.isClassTeacher) {
-      return res.status(403).json({ message: "Not authorized to add students" });
+    if (!teacher) {
+      return res.status(403).json({ message: "Teacher not found" });
     }
 
-    const { year, division } = teacher.assignedClass;
+    let assignedYear = year;
+    let assignedDivision = division;
+
+    if (teacher.isClassTeacher) {
+      // ✅ Use Class Teacher's assigned class if year & division are missing
+      assignedYear = year || teacher.assignedClass.year;
+      assignedDivision = division || teacher.assignedClass.division;
+    } else if (teacher.isSubjectTeacher) {
+      // ✅ Ensure Subject Teacher is adding students to a valid assigned subject
+      const validSubject = teacher.assignedSubjects.some(
+        (subject) => subject.year === year && subject.division === division
+      );
+
+      if (!validSubject) {
+        return res.status(403).json({ message: "Not authorized to add students to this class" });
+      }
+    } else {
+      return res.status(403).json({ message: "Not authorized to add students" });
+    }
 
     // ✅ Check if student already exists
     let student = await Student.findOne({ email });
@@ -171,8 +189,8 @@ router.post("/add-student", async (req, res) => {
       name,
       email,
       password: hashedPassword, // Store the hashed password
-      year,
-      division,
+      year: assignedYear,
+      division: assignedDivision,
       teacherId, // Store Teacher ID
       adminId, // Store Admin ID
     });
@@ -189,6 +207,7 @@ router.post("/add-student", async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 });
+
 
 
 // ✅ Fetch Students for Class Teacher
