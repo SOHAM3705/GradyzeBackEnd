@@ -43,58 +43,45 @@ router.post("/verify-email", async (req, res) => {
     }
 });
 
+// ✅ Step 2: Reset Password
 router.post("/change-password", async (req, res) => {
-  
-        try {
-            const { token, newPassword, confirmPassword } = req.body;
-            
-            console.log("🛠 Received Token:", token); // Debug log
-            console.log("🛠 Received Passwords:", newPassword, confirmPassword); // Debug log
-    
-            if (!token || !newPassword || !confirmPassword) {
-                return res.status(400).json({ message: "All fields are required" });
-            }
-    
-            let decoded;
-            try {
-                decoded = jwt.verify(token, process.env.JWT_SECRET);
-                console.log("✅ Decoded Token:", decoded);
-            } catch (err) {
-                console.error("❌ Token Verification Error:", err);
-                return res.status(400).json({ message: err.name === "TokenExpiredError" ? "Token has expired." : "Invalid token." });
-            }
-    
+    try {
+        const { token, newPassword, confirmPassword } = req.body;
 
-       
-
-        console.log("Decoded Token:", decoded); // Debugging
-
-        // ✅ 3. Find user by email
-        const user = await Admin.findOne({ email: decoded.email.toLowerCase() });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        // 🔍 Validate input
+        if (!token || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required" });
         }
 
-        // ✅ 4. Prevent setting the same password
-        const isSamePassword = await bcrypt.compare(newPassword, user.password);
-        if (isSamePassword) {
-            return res.status(400).json({ message: "New password must be different from the old password." });
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "Passwords do not match" });
         }
 
-        // ✅ 5. Hash new password
+        // 🔑 Verify the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (!decoded || !decoded.id) {
+            return res.status(400).json({ message: "Invalid or expired token" });
+        }
+
+        // 🔍 Find student
+        const student = await Student.findById(decoded.id);
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
+        // 🔒 Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // ✅ 6. Update password in the database
-        await Admin.updateOne(
-            { email: decoded.email.toLowerCase() },
-            { $set: { password: hashedPassword } }
-        );
+        // 🔄 Update student password
+        await Student.updateOne({ _id: decoded.id }, { $set: { password: hashedPassword } });
 
         res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
         console.error("Password reset error:", error);
+        if (error.name === "TokenExpiredError") {
+            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
+        }
         res.status(500).json({ message: "Failed to reset password" });
     }
 });
-
 module.exports = router;

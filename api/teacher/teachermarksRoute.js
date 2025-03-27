@@ -28,31 +28,21 @@ async function checkTeacherRole(req, res, next) {
 // Fetch students based on class teacher's assigned class
 router.get("/students", checkTeacherRole, async (req, res) => {
   try {
-    let students = [];
+    const students = await Student.find({ year: req.teacher.assignedClass.year });
 
-    if (req.teacher.isClassTeacher) {
-      const { year, division } = req.teacher.assignedClass;
-      students = await Student.find({ year, division });
-    } else if (req.teacher.isSubjectTeacher) {
-      const subjectYearsDivisions = req.teacher.subjects.map((s) => ({
-        year: s.year,
-        division: s.division,
-      }));
+    // ✅ Ensure name exists in every student object
+    const sanitizedStudents = students.map(student => ({
+      ...student,
+      name: student.name || "Unnamed Student",
+    }));
 
-      const studentQueries = subjectYearsDivisions.map(({ year, division }) =>
-        Student.find({ year, division })
-      );
-
-      const results = await Promise.all(studentQueries);
-      students = results.flat();
-    }
-
-    res.status(200).json(students);
+    res.status(200).json(sanitizedStudents);
   } catch (error) {
     console.error("Error fetching students:", error);
     res.status(500).json({ error: "Error fetching students" });
   }
 });
+
 // Add marks (Restricted to Subject Teachers)
 router.post("/add-marks", checkTeacherRole, async (req, res) => {
   try {
