@@ -16,7 +16,7 @@ const router = express.Router();
 // ✅ Configure Multer for temporary storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "Uploads/");
+        cb(null, "uploads/");
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + path.extname(file.originalname));
