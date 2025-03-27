@@ -36,29 +36,37 @@ const emailContent = require("../../utils/newaccount");
 
 const sendEmail = async (email, password, name) => {
     try {
-      if (!process.env.RESEND_API_KEY) {
-        console.error("❌ Resend API Key is missing. Please check your environment variables.");
-        return;
-      }
-  
-      if (!email || typeof email !== "string") {
-        console.error("❌ Invalid email address provided:", email);
-        return;
-      }
-  
-      const response = await axios.post("https://api.resend.com/emails", {
-        from: "support@gradyze.com",
-        to: email,
-        subject: "Welcome to Gradyze - Your Account Credentials",
-        html: emailContent(name, email, password),
-      });
-  
-      console.log(`✅ Email sent successfully to: ${email}`);
-      return response.data;
+        if (!process.env.RESEND_API_KEY) {
+            console.error("❌ Resend API Key is missing. Please check your environment variables.");
+            return;
+        }
+
+        if (!email || typeof email !== "string") {
+            console.error("❌ Invalid email address provided:", email);
+            return;
+        }
+
+        const response = await axios.post(
+            "https://api.resend.com/emails",
+            {
+                from: "support@gradyze.com",
+                to: email,
+                subject: "Welcome to Gradyze - Your Account Credentials",
+                html: emailContent(name, email, password),
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.RESEND_API_KEY}`
+                },
+            }
+        );
+
+        console.log(`✅ Email sent successfully to: ${email}`);
+        return response.data;
     } catch (error) {
-      console.error("❌ Error sending email:", error.response?.data || error.message);
+        console.error("❌ Error sending email:", error.response?.data || error.message);
     }
-  };
+};
 
 router.post("/add-teacher", async (req, res) => {
     try {

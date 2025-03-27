@@ -6,7 +6,6 @@ require("dotenv").config();
 const Student = require("../../models/studentModel");
 
 const router = express.Router();
-
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -20,21 +19,25 @@ router.post("/login", async (req, res) => {
     }
 
     // 🔍 Compare entered password with hashed password in DB
-    console.log("📌 Entered Password:", password);
-    console.log("📌 Stored Hashed Password:", student.password);
-
     const isMatch = await bcrypt.compare(password, student.password);
-    console.log("📌 Password Match:", isMatch);
 
     if (!isMatch) {
       console.log("❌ Password mismatch");
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // ✅ If password matches, generate JWT and send response
+    // ✅ If password matches, generate JWT token
     const token = jwt.sign({ id: student._id }, "your_jwt_secret", { expiresIn: "1h" });
 
-    res.status(200).json({ message: "Login successful", token });
+    // ✅ Include additional details in response
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      studentId: student._id,
+      name: student.name,
+      adminId: student.adminId || "", // Ensure it doesn't return undefined
+      teacherId: student.teacherId || "", // Ensure it doesn't return undefined
+    });
 
   } catch (error) {
     console.error("❌ Login Error:", error);
