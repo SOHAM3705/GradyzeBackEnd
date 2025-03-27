@@ -44,29 +44,28 @@ router.post("/verify-email", async (req, res) => {
 });
 
 router.post("/change-password", async (req, res) => {
-    try {
-        const { token, newPassword, confirmPassword } = req.body;
-
-        // ✅ 1. Validate input fields
-        if (!token || !newPassword || !confirmPassword) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-
-        if (newPassword !== confirmPassword) {
-            return res.status(400).json({ message: "Passwords do not match" });
-        }
-
-        // ✅ 2. Verify JWT token
-        let decoded;
+  
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch (err) {
-            console.error("JWT Verification Error:", err);
-            if (err.name === "TokenExpiredError") {
-                return res.status(400).json({ message: "Token expired. Please request a new reset link." });
+            const { token, newPassword, confirmPassword } = req.body;
+            
+            console.log("🛠 Received Token:", token); // Debug log
+            console.log("🛠 Received Passwords:", newPassword, confirmPassword); // Debug log
+    
+            if (!token || !newPassword || !confirmPassword) {
+                return res.status(400).json({ message: "All fields are required" });
             }
-            return res.status(400).json({ message: "Invalid token." });
-        }
+    
+            let decoded;
+            try {
+                decoded = jwt.verify(token, process.env.JWT_SECRET);
+                console.log("✅ Decoded Token:", decoded);
+            } catch (err) {
+                console.error("❌ Token Verification Error:", err);
+                return res.status(400).json({ message: err.name === "TokenExpiredError" ? "Token has expired." : "Invalid token." });
+            }
+    
+
+       
 
         console.log("Decoded Token:", decoded); // Debugging
 
