@@ -25,7 +25,7 @@ router.post("/verify-email", async (req, res) => {
         await user.save();
 
         // Create reset link
-        const resetLink = `https://gradyzefrontend.onrender.com/reset-password?token=${resetToken}`;
+        const resetLink = `https://gradyzefrontend.onrender.com/change-password?token=${resetToken}`;
 
         // Send email using Resend API
         const response = await resend.emails.send({

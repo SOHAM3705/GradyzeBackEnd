@@ -5,6 +5,8 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
+const { resetPasswordEmail } = require("../../utils/emailTemplates");
+const { Resend } = require("resend");
 
 dotenv.config();
 
@@ -32,7 +34,7 @@ router.post("/verify-email", async (req, res) => {
                 from: "support@gradyze.com",
                 to: email,
                 subject: "Reset Your Password",
-                html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 30 minutes.</p>`,
+                html: resetPasswordEmail(user.name, resetLink),
             },
             {
                 headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
