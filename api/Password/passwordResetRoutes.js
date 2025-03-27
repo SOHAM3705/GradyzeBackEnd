@@ -1,51 +1,45 @@
 const express = require("express");
 const router = express.Router();
-const Admin = require("../../models/useradmin"); // Adjust the path if needed
-const jwt = require("jsonwebtoken");
-const axios = require("axios");
-const bcrypt = require("bcryptjs"); // Changed bcrypt to bcryptjs (better compatibility)
-const dotenv = require("dotenv");
+const User = require("../models/User");
+const crypto = require("crypto");
+const { resetPasswordEmail } = require("../utils/resetPasswordEmail");
+const { Resend } = require("resend");
 
-dotenv.config();
+const resend = new Resend(process.env.RESEND_API_KEY); // Store your API key in .env file
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://gradyzefrontend.onrender.com"; 
-
-// ✅ Step 1: Verify Email & Send Reset Link
+// Password Reset Request
 router.post("/verify-email", async (req, res) => {
     try {
         const { email } = req.body;
-        if (!email) return res.status(400).json({ message: "Email is required" });
+        const user = await User.findOne({ email });
 
-        // 🔍 Check if user exists
-        const user = await Admin.findOne({ email });
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        // 🔑 Generate token valid for 30 minutes
-        const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
-        const resetLink = `${FRONTEND_URL}/change-password?token=${token}`;
-
-        // 📧 Send email via Resend API
-        const emailResponse = await axios.post(
-            "https://api.resend.com/emails",
-            {
-                from: "support@gradyze.com", // Ensure this email is verified in Resend
-                to: email,
-                subject: "Reset Your Password",
-                html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 30 minutes.</p>`,
-            },
-            {
-                headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
-            }
-        );
-
-        if (emailResponse.status !== 200) {
-            throw new Error("Failed to send email");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
 
-        res.status(200).json({ message: "Verification email sent successfully" });
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // Token expires in 30 minutes
+
+        await user.save();
+
+        // Create reset link
+        const resetLink = `https://gradyzefrontend.onrender.com/reset-password?token=${resetToken}`;
+
+        // Send email using Resend API
+        const response = await resend.emails.send({
+            from: "Gradyze Support <support@gradyze.com>",
+            to: user.email,
+            subject: "Reset Your Password - Gradyze",
+            html: resetPasswordEmail(user.name, resetLink),
+        });
+
+        console.log("📧 Email sent via Resend:", response);
+        res.json({ message: "Password reset email sent successfully" });
     } catch (error) {
-        console.error("Error sending reset email:", error);
-        res.status(500).json({ message: "Failed to send reset link" });
+        console.error("❌ Error sending reset email:", error);
+        res.status(500).json({ message: "Something went wrong." });
     }
 });
 
@@ -54,7 +48,6 @@ router.post("/change-password", async (req, res) => {
     try {
         const { token, newPassword, confirmPassword } = req.body;
 
-        // 🔍 Validate input
         if (!token || !newPassword || !confirmPassword) {
             return res.status(400).json({ message: "All fields are required" });
         }
@@ -63,16 +56,26 @@ router.post("/change-password", async (req, res) => {
             return res.status(400).json({ message: "Passwords do not match" });
         }
 
-        // 🔑 Verify the token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded || !decoded.email) {
-            return res.status(400).json({ message: "Invalid or expired token" });
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
+            if (err.name === "TokenExpiredError") {
+                return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
+            }
+            return res.status(400).json({ message: "Invalid token." });
         }
 
         // 🔍 Find user
-        const user = await Admin.findOne({ email: decoded.email });
+        const user = await Admin.findOne({ email: decoded.email.toLowerCase() });
         if (!user) {
             return res.status(404).json({ message: "User not found" });
+        }
+
+        // 🛠 Check if the new password is the same as the old password
+        const isSamePassword = await bcrypt.compare(newPassword, user.password);
+        if (isSamePassword) {
+            return res.status(400).json({ message: "New password must be different from the old password." });
         }
 
         // 🔒 Hash new password
@@ -84,9 +87,6 @@ router.post("/change-password", async (req, res) => {
         res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
         console.error("Password reset error:", error);
-        if (error.name === "TokenExpiredError") {
-            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
-        }
         res.status(500).json({ message: "Failed to reset password" });
     }
 });
