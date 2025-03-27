@@ -6,13 +6,12 @@ const { GridFSBucket } = require("mongodb");
 
 // ✅ Fetch notifications only for students (including file IDs)
 router.get("/notifications", async (req, res) => {
+    console.log("✅ Notifications API hit!"); // Debugging
     try {
-        // ✅ Fetch only notifications where audience is "students" or "all"
         const notifications = await Notification.find({
             audience: { $in: ["students", "all"] }
         }).sort({ createdAt: -1 });
 
-        // ✅ Ensure response is always an array
         if (!Array.isArray(notifications)) {
             return res.json([]);
         }
@@ -22,12 +21,12 @@ router.get("/notifications", async (req, res) => {
                 _id: notif._id,
                 message: notif.message,
                 audience: notif.audience,
-                fileId: notif.fileId || null, // Include fileId if exists
+                fileId: notif.fileId || null,
                 createdAt: notif.createdAt,
             }))
         );
     } catch (err) {
-        console.error("Error fetching student notifications:", err);
+        console.error("❌ Error fetching student notifications:", err);
         res.status(500).json({ error: "Failed to fetch notifications" });
     }
 });
