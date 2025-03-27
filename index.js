@@ -121,8 +121,8 @@ web.use("/api/Gsheet", contactus);
 web.use("/api/Gsheet", feedback);
 
 web.use("/api/teacher", teacherRoutes);
-web.use("/api/password", teacherPasswordRoutes);
-web.use("/api/password", studentpassword);
+web.use("/api/password/teacherpassword", teacherPasswordRoutes);
+web.use("/api/password/studentpassword", studentpassword);
 
 web.use('/api/syllabi',syllabusRoutes);
 web.use('/api/notifications', notificationRoutes);
