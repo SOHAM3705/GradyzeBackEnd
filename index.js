@@ -21,7 +21,7 @@ const teachermarks = require("./api/teacher/teachermarksRoute"); // Assuming you
 const adminsettingRoute = require("./api/admin/adminsettingRoute");
 const teacherSettingRoute = require("./api/teacher/teachersettingRoute");
 const studentSettingRoute = require("./api/student/studentsettingRoute");
-
+const studentnotificationRoute = require("./api/student/studentnotificationRoute");
 const web = express();
 
 // Importing required modules
@@ -134,7 +134,7 @@ web.use("/api/teachermarks", teachermarks);
 web.use("/api/adminsetting", adminsettingRoute);
 web.use("/api/teachersetting", teacherSettingRoute);
 web.use("/api/studentsetting", studentSettingRoute);
-
+web.use("/api/studentnotification",studentnotificationRoute);
 
 
 // Serve static files from React's build folder
