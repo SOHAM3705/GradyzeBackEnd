@@ -19,6 +19,8 @@ const studentmanagementRoute = require("./api/teacher/studentmanagnmentRoute"); 
 const student = require("./api/student/studentRoue"); // Assuming you create the student management route
 const teachermarks = require("./api/teacher/teachermarksRoute"); // Assuming you create the teacher marks route
 const adminsettingRoute = require("./api/admin/adminsettingRoute");
+const teacherSettingRoute = require("./api/teacher/teachersettingRoute");
+const studentSettingRoute = require("./api/student/studentsettingRoute");
 
 const web = express();
 
@@ -130,6 +132,8 @@ web.use("/api/studentmanagement", studentmanagementRoute);
 web.use("/api/student", student);
 web.use("/api/teachermarks", teachermarks);
 web.use("/api/adminsetting", adminsettingRoute);
+web.use("/api/teachersetting", teacherSettingRoute);
+web.use("/api/studentsetting", studentSettingRoute);
 
 
 

@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const axios = require("axios");
 const authMiddleware = require("../../middleware/authmiddleware");
+const User = require("../../models/adminsettingmodel"); // Profile collection
 
 dotenv.config();
 
@@ -230,44 +231,62 @@ router.get("/subjects", authMiddleware, async (req, res) => {
 });
 
 
+// ✅ Teacher Login Route
 router.post("/login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        let teacher = await Teacher.findOne({ email });
+  const { email, password } = req.body;
 
-        if (!teacher || !(await bcrypt.compare(password, teacher.password))) {
-            return res.status(401).json({ message: "Invalid credentials" });
-        }
-
-        // ✅ FIXED: Use `teacher` instead of `user`
-        const token = jwt.sign(
-            { id: teacher._id, email: teacher.email, role: "teacher" }, // Explicitly set role
-            process.env.JWT_SECRET,
-            { expiresIn: "1h" }
-        );
-
-        res.status(200).json({
-            message: "Login successful",
-            token,
-            teacher: {
-                _id: teacher._id,  // ✅ Ensure teacherId is included
-                name: teacher.name,
-                email: teacher.email,
-                department: teacher.department,
-                isClassTeacher: teacher.isClassTeacher,
-                isSubjectTeacher: teacher.isSubjectTeacher,
-                assignedClass: teacher.isClassTeacher ? teacher.assignedClass : null,
-                subjects: teacher.isSubjectTeacher ? teacher.subjects : [],
-                adminId: teacher.adminId ? teacher.adminId.toString() : null
-
-            },
-        });
-    } catch (error) {
-        console.error("Login Error:", error); // ✅ Log error for debugging
-        res.status(500).json({ message: "Internal Server Error" });
+  try {
+    console.log(`Received login request for email: ${email}`);
+    
+    // ✅ Fetch teacher with password field
+    const teacher = await Teacher.findOne({ email }).select("+password");
+    if (!teacher) {
+      console.log("❌ Teacher not found");
+      return res.status(400).json({ message: "Invalid email or password" });
     }
-});
 
+    // ✅ Verify password
+    const isMatch = await bcrypt.compare(password, teacher.password);
+    if (!isMatch) {
+      console.log("❌ Password does not match");
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    // ✅ Ensure the teacher's profile exists in `User` collection
+    let profile = await User.findOne({ email });
+    if (!profile) {
+      console.log(`⚠️ No profile found for ${email}, creating one...`);
+      profile = await User.create({ email, name: teacher.name });
+      console.log(`✅ Profile created for ${email}`);
+    }
+
+    // ✅ Generate JWT Token
+    const token = jwt.sign(
+      { id: teacher._id, email: teacher.email, role: "teacher" }, // Explicit role assignment
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token, // Send JWT Token
+      teacher: {
+        _id: teacher._id,
+        name: teacher.name,
+        email: teacher.email,
+        department: teacher.department,
+        isClassTeacher: teacher.isClassTeacher,
+        isSubjectTeacher: teacher.isSubjectTeacher,
+        assignedClass: teacher.isClassTeacher ? teacher.assignedClass : null,
+        subjects: teacher.isSubjectTeacher ? teacher.subjects : [],
+        adminId: teacher.adminId ? teacher.adminId.toString() : null,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Login Error:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
 
 
 router.delete("/delete/:id", async (req, res) => {
