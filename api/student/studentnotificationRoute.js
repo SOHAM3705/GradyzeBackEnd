@@ -5,7 +5,7 @@ const Notification = require("../../models/notificationmodel");
 const { GridFSBucket } = require("mongodb");
 
 // ✅ Fetch notifications only for students (including file IDs)
-router.get("/api/notifications/students", async (req, res) => {
+router.get("/notifications", async (req, res) => {
     try {
         // ✅ Fetch only notifications where audience is "students" or "all"
         const notifications = await Notification.find({
@@ -33,7 +33,7 @@ router.get("/api/notifications/students", async (req, res) => {
 });
 
 // ✅ Download a file from GridFS (if attached to a notification)
-router.get("/api/notifications/files/:fileId", async (req, res) => {
+router.get("/files/:fileId", async (req, res) => {
     try {
         const { fileId } = req.params;
         const db = mongoose.connection.db;
