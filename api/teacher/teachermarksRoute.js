@@ -3,7 +3,6 @@ const router = express.Router();
 const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
-const twilio = require("twilio");
 
 // Get assigned divisions for a class teacher
 router.get("/:teacherId/divisions", async (req, res) => {
@@ -110,6 +109,7 @@ router.get("/:teacherId/exams", async (req, res) => {
   }
 });
 
+// Get students in teacher's assigned class
 router.get("/:teacherId/students", async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -133,6 +133,24 @@ router.get("/:teacherId/students", async (req, res) => {
   } catch (error) {
     console.error("Error fetching students:", error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get subject list for a subject teacher
+router.get("/subject-list/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    // Find teacher
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher || !teacher.isSubjectTeacher) {
+      return res.status(404).json({ message: "Subject Teacher not found" });
+    }
+
+    res.json({ subjects: teacher.subjects || [] });
+  } catch (error) {
+    console.error("Error fetching subject details:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -182,56 +200,6 @@ router.get("/:teacherId/marks", async (req, res) => {
     res.json({ year, division, examType, studentMarks });
   } catch (error) {
     console.error("Error fetching student marks:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Add or update student marks
-router.post("/:teacherId/marks", async (req, res) => {
-  try {
-    const { teacherId } = req.params;
-    const { studentId, examType, subjectName, marksObtained, totalMarks, academicYear } = req.body;
-
-    if (!studentId || !examType || !subjectName || marksObtained == null || !totalMarks || !academicYear) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    // Check if marks entry exists for this student & academic year
-    let marksEntry = await Marks.findOne({ studentId, academicYear });
-
-    if (!marksEntry) {
-      // Create new marks entry
-      marksEntry = new Marks({
-        studentId,
-        teacherId,
-        academicYear,
-        exams: [
-          {
-            examType,
-            subjects: [{ subjectName, marksObtained, totalMarks }],
-          },
-        ],
-      });
-    } else {
-      // Update existing marks entry
-      let exam = marksEntry.exams.find((e) => e.examType === examType);
-      if (!exam) {
-        marksEntry.exams.push({ examType, subjects: [{ subjectName, marksObtained, totalMarks }] });
-      } else {
-        let subject = exam.subjects.find((s) => s.subjectName === subjectName);
-        if (subject) {
-          subject.marksObtained = marksObtained;
-          subject.totalMarks = totalMarks;
-        } else {
-          exam.subjects.push({ subjectName, marksObtained, totalMarks });
-        }
-      }
-    }
-
-    await marksEntry.save();
-    res.json({ message: "Marks added/updated successfully" });
-  } catch (error) {
-    console.error("Error updating marks:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -405,6 +373,5 @@ router.get("/dashboard/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 module.exports = router;
