@@ -46,7 +46,7 @@ const sendEmail = async (email, password, name) => {
         return;
       }
   
-      const response = await resendApi.post("", {
+      const response = await axios.post("https://api.resend.com/emails", {
         from: "support@gradyze.com",
         to: email,
         subject: "Welcome to Gradyze - Your Account Credentials",
