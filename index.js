@@ -22,6 +22,7 @@ const adminsettingRoute = require("./api/admin/adminsettingRoute");
 const teacherSettingRoute = require("./api/teacher/teachersettingRoute");
 const studentSettingRoute = require("./api/student/studentsettingRoute");
 const studentnotificationRoute = require("./api/student/studentnotificationRoute");
+const studentpassword = require("./api/Password/studentpassword");
 const web = express();
 
 // Importing required modules
@@ -114,13 +115,14 @@ web.get("/", (req, res) => {
 // Routes
 web.use('/api/admin', adminRoutes);
 web.use('/api/admin', loginRoute);
-web.use("/api/password", require("./middleware/auth"),passwordResetRoutes);
+web.use("/api/password",passwordResetRoutes);
 web.use("/api/auth", authRoutes);
 web.use("/api/Gsheet", contactus);
 web.use("/api/Gsheet", feedback);
 
 web.use("/api/teacher", teacherRoutes);
-web.use("/api/password", require("./middleware/auth"), teacherPasswordRoutes);
+web.use("/api/password", teacherPasswordRoutes);
+web.use("/api/password", studentpassword);
 
 web.use('/api/syllabi',syllabusRoutes);
 web.use('/api/notifications', notificationRoutes);
