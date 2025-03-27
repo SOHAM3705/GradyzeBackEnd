@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../../models/useradmin");
 const crypto = require("crypto");
-const { resetPasswordEmail } = require("../utils/resetPasswordEmail");
+const { resetPasswordEmail } = require("../../utils/emailTemplates");
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY); // Store your API key in .env file
