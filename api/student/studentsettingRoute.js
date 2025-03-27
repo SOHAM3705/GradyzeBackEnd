@@ -8,7 +8,7 @@ const { GridFSBucket } = require("mongodb");
 const fs = require("fs");
 const path = require("path");
 const verifyToken = require("../../middleware/settingauth"); // ✅ Middleware for authentication
-const Student = require("../../models/userstudent"); // Collection: "students"
+const Student = require("../../models/studentModel"); // Collection: "students"
 
 const router = express.Router();
 
