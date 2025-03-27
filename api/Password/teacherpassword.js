@@ -33,7 +33,7 @@ router.post("/verify-email", async (req, res) => {
                 from: "support@gradyze.com",
                 to: email,
                 subject: "Reset Your Password",
-                html: resetPasswordEmail(user.name, resetLink),
+                html: resetPasswordEmail(teacher.name, resetLink),
             },
             {
                 headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
