@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../../models/useradmin");
-const crypto = require("crypto");
 const { resetPasswordEmail } = require("../../utils/emailTemplates");
 const { Resend } = require("resend");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const resend = new Resend(process.env.RESEND_API_KEY); // Store your API key in .env file
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Password Reset Request
+// ✅ Step 1: Send Password Reset Email
 router.post("/verify-email", async (req, res) => {
     try {
         const { email } = req.body;
@@ -17,25 +17,25 @@ router.post("/verify-email", async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Generate reset token
-        const resetToken = crypto.randomBytes(32).toString("hex");
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // Token expires in 30 minutes
+        // 🔑 Generate a JWT Reset Token (valid for 30 minutes)
+        const resetToken = jwt.sign(
+            { id: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "30m" }
+        );
 
-        await user.save();
-
-        // Create reset link
+        // Create reset link with JWT
         const resetLink = `https://gradyzefrontend.onrender.com/change-password?token=${resetToken}`;
 
         // Send email using Resend API
-        const response = await resend.emails.send({
+        await resend.emails.send({
             from: "Gradyze Support <support@gradyze.com>",
             to: user.email,
             subject: "Reset Your Password - Gradyze",
             html: resetPasswordEmail(user.name, resetLink),
         });
 
-        console.log("📧 Email sent via Resend:", response);
+        console.log("📧 Email sent with JWT token");
         res.json({ message: "Password reset email sent successfully" });
     } catch (error) {
         console.error("❌ Error sending reset email:", error);
@@ -57,15 +57,17 @@ router.post("/change-password", async (req, res) => {
             return res.status(400).json({ message: "Passwords do not match" });
         }
 
-        // 🔑 Verify the token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded || !decoded.id) {
+        // 🔑 Verify JWT Token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
             return res.status(400).json({ message: "Invalid or expired token" });
         }
 
-        // 🔍 Find User
-        const User = await User.findById(decoded.id);
-        if (!User) {
+        // 🔍 Find User by ID
+        const user = await User.findById(decoded.id);
+        if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
@@ -73,15 +75,14 @@ router.post("/change-password", async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         // 🔄 Update User password
-        await User.updateOne({ _id: decoded.id }, { $set: { password: hashedPassword } });
+        user.password = hashedPassword;
+        await user.save();
 
         res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
         console.error("Password reset error:", error);
-        if (error.name === "TokenExpiredError") {
-            return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
-        }
         res.status(500).json({ message: "Failed to reset password" });
     }
 });
+
 module.exports = router;
