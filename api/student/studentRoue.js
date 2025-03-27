@@ -6,6 +6,7 @@ require("dotenv").config();
 const Student = require("../../models/studentModel");
 
 const router = express.Router();
+
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
