@@ -63,17 +63,17 @@ router.post("/change-password", async (req, res) => {
             return res.status(400).json({ message: "Invalid or expired token" });
         }
 
-        // 🔍 Find student
-        const student = await Student.findById(decoded.id);
-        if (!student) {
-            return res.status(404).json({ message: "Student not found" });
+        // 🔍 Find User
+        const User = await User.findById(decoded.id);
+        if (!User) {
+            return res.status(404).json({ message: "User not found" });
         }
 
         // 🔒 Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // 🔄 Update student password
-        await Student.updateOne({ _id: decoded.id }, { $set: { password: hashedPassword } });
+        // 🔄 Update User password
+        await User.updateOne({ _id: decoded.id }, { $set: { password: hashedPassword } });
 
         res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {

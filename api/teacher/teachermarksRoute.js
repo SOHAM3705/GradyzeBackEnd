@@ -9,39 +9,55 @@ const router = express.Router();
 async function checkTeacherRole(req, res, next) {
   try {
     const token = req.header("Authorization");
-    if (!token) return res.status(401).json({ error: "Unauthorized: No token provided" });
 
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized: No token provided" });
+    }
+
+    // ✅ Verify and extract teacher ID
     const decoded = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
-    if (!decoded.id) return res.status(401).json({ error: "Invalid token" });
+    
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
 
     const teacher = await Teacher.findById(decoded.id);
-    if (!teacher) return res.status(404).json({ error: "Teacher not found" });
+    
+    if (!teacher) {
+      return res.status(404).json({ error: "Teacher not found" });
+    }
 
-    req.teacher = teacher; // Attach teacher object to request
+    req.teacher = teacher; // ✅ Attach teacher data to request
     next();
   } catch (error) {
     console.error("Authentication Error:", error);
+    
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Session expired. Please log in again." });
+    }
+
     res.status(500).json({ error: "Error verifying teacher" });
   }
 }
 
+
 // Fetch students based on class teacher's assigned class
 router.get("/students", checkTeacherRole, async (req, res) => {
   try {
-    const students = await Student.find({ year: req.teacher.assignedClass.year });
+    if (!req.teacher.assignedClass) {
+      return res.status(400).json({ error: "Teacher is not assigned to a class" });
+    }
 
-    // ✅ Ensure name exists in every student object
-    const sanitizedStudents = students.map(student => ({
-      ...student,
-      name: student.name || "Unnamed Student",
-    }));
+    const { year, division } = req.teacher.assignedClass;
+    const students = await Student.find({ year, division });
 
-    res.status(200).json(sanitizedStudents);
+    res.status(200).json(students);
   } catch (error) {
     console.error("Error fetching students:", error);
     res.status(500).json({ error: "Error fetching students" });
   }
 });
+
 
 // Add marks (Restricted to Subject Teachers)
 router.post("/add-marks", checkTeacherRole, async (req, res) => {
@@ -85,6 +101,7 @@ router.get("/student-marks/:studentId", checkTeacherRole, async (req, res) => {
       return res.status(200).json(studentMarks);
     }
 
+    // ✅ Allow subject teachers to view only their assigned subjects
     const allowedSubjects = req.teacher.subjects.map((s) => s.name);
     const filteredMarks = studentMarks.filter((mark) =>
       allowedSubjects.includes(mark.subject)
@@ -100,6 +117,7 @@ router.get("/student-marks/:studentId", checkTeacherRole, async (req, res) => {
     res.status(500).json({ error: "Error fetching marks" });
   }
 });
+
 
 // Update marks (Only Subject Teachers can update their assigned subject's marks)
 router.put("/update-marks/:marksId", checkTeacherRole, async (req, res) => {
