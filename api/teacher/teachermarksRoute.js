@@ -8,31 +8,44 @@ const router = express.Router();
 // Middleware to check teacher role
 async function checkTeacherRole(req, res, next) {
   try {
-    // ✅ Extract token from headers
     const token = req.header("Authorization");
     if (!token) return res.status(401).json({ error: "Unauthorized: No token provided" });
 
-    // ✅ Verify token
     const decoded = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
     if (!decoded.id) return res.status(401).json({ error: "Invalid token" });
 
-    // ✅ Fetch teacher from database
     const teacher = await Teacher.findById(decoded.id);
     if (!teacher) return res.status(404).json({ error: "Teacher not found" });
 
-    req.teacher = teacher;
+    req.teacher = teacher; // Attach teacher object to request
     next();
   } catch (error) {
     console.error("Authentication Error:", error);
     res.status(500).json({ error: "Error verifying teacher" });
   }
 }
+
 // Fetch students based on class teacher's assigned class
 router.get("/students", checkTeacherRole, async (req, res) => {
   try {
-    const { year, division, semester } = req.teacher.assignedClass; // ✅ Use teacher's assigned class
+    let students = [];
 
-    const students = await Student.find({ year, division, semester });
+    if (req.teacher.isClassTeacher) {
+      const { year, division } = req.teacher.assignedClass;
+      students = await Student.find({ year, division });
+    } else if (req.teacher.isSubjectTeacher) {
+      const subjectYearsDivisions = req.teacher.subjects.map((s) => ({
+        year: s.year,
+        division: s.division,
+      }));
+
+      const studentQueries = subjectYearsDivisions.map(({ year, division }) =>
+        Student.find({ year, division })
+      );
+
+      const results = await Promise.all(studentQueries);
+      students = results.flat();
+    }
 
     res.status(200).json(students);
   } catch (error) {
@@ -40,7 +53,6 @@ router.get("/students", checkTeacherRole, async (req, res) => {
     res.status(500).json({ error: "Error fetching students" });
   }
 });
-
 // Add marks (Restricted to Subject Teachers)
 router.post("/add-marks", checkTeacherRole, async (req, res) => {
   try {
@@ -79,15 +91,20 @@ router.get("/student-marks/:studentId", checkTeacherRole, async (req, res) => {
   try {
     const studentMarks = await Marks.find({ studentId: req.params.studentId });
 
-    // ✅ Allow access if the teacher is either a class teacher or subject teacher
-    if (
-      req.teacher.isClassTeacher ||
-      req.teacher.subjects.some(subject => studentMarks.some(mark => mark.subject === subject.name))
-    ) {
+    if (req.teacher.isClassTeacher) {
       return res.status(200).json(studentMarks);
     }
 
-    return res.status(403).json({ error: "Not authorized to view marks" });
+    const allowedSubjects = req.teacher.subjects.map((s) => s.name);
+    const filteredMarks = studentMarks.filter((mark) =>
+      allowedSubjects.includes(mark.subject)
+    );
+
+    if (filteredMarks.length === 0) {
+      return res.status(403).json({ error: "Not authorized to view marks" });
+    }
+
+    res.status(200).json(filteredMarks);
   } catch (error) {
     console.error("Error fetching marks:", error);
     res.status(500).json({ error: "Error fetching marks" });

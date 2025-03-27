@@ -4,7 +4,7 @@ const User = require("../../models/useradmin");
 const crypto = require("crypto");
 const { resetPasswordEmail } = require("../../utils/emailTemplates");
 const { Resend } = require("resend");
-
+const jwt = require("jsonwebtoken");
 const resend = new Resend(process.env.RESEND_API_KEY); // Store your API key in .env file
 
 // Password Reset Request

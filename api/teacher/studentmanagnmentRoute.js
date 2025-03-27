@@ -324,43 +324,34 @@ const upload = multer({ dest: "uploads/" });
 router.post("/import-students", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
-    const teacherId = req.headers.teacherid; // Extract from session storage
-    const adminId = req.headers.adminid; // Extract from session storage
+    const teacherId = req.headers.teacherid;
+    const adminId = req.headers.adminid;
 
-    if (!file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
+    if (!file) return res.status(400).json({ message: "No file uploaded" });
 
-    // ✅ Validate Teacher ID
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Not authorized to import students" });
     }
 
-    const { year, division } = teacher.assignedClass; // ✅ Assign dynamically
-
-    // ✅ Read Excel File
     const workbook = xlsx.readFile(file.path);
     const sheetName = workbook.SheetNames[0];
     const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    if (data.length === 0) {
-      return res.status(400).json({ message: "Empty Excel file or incorrect format." });
-    }
+    if (!data.length) return res.status(400).json({ message: "Empty Excel file" });
 
-    // ✅ Check Required Columns
     const requiredColumns = ["RollNo", "Name", "Email"];
-    const fileColumns = Object.keys(data[0]).map(col => col.trim());
+    const fileColumns = Object.keys(data[0]).map((col) => col.trim());
 
-    const missingColumns = requiredColumns.filter(col => !fileColumns.includes(col));
+    const missingColumns = requiredColumns.filter((col) => !fileColumns.includes(col));
     if (missingColumns.length > 0) {
       return res.status(400).json({ message: `Missing columns: ${missingColumns.join(", ")}` });
     }
 
-    // ✅ Insert Students with Assigned Teacher & Admin
+    const { year, division } = teacher.assignedClass;
     const students = [];
+
     for (const row of data) {
-      // ✅ Generate a random password
       const randomPassword = crypto.randomBytes(6).toString("hex");
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -368,19 +359,20 @@ router.post("/import-students", upload.single("file"), async (req, res) => {
         rollNo: row.RollNo,
         name: row.Name,
         email: row.Email,
-        password: hashedPassword, // ✅ Store hashed password
-        year, // ✅ Assign dynamically
-        division, // ✅ Assign dynamically
-        teacherId, // ✅ Store Teacher ID
-        adminId, // ✅ Store Admin ID
+        password: hashedPassword,
+        year,
+        division,
+        teacherId,
+        adminId,
       });
 
-      // ✅ Send Email with Credentials
       await sendEmail(row.Email, randomPassword, row.Name);
     }
 
     await Student.insertMany(students);
-    res.status(201).json({ message: "Students imported successfully & emails sent!", students });
+    fs.unlinkSync(file.path); // ✅ Delete the file after reading
+
+    res.status(201).json({ message: "Students imported successfully!" });
   } catch (error) {
     console.error("❌ Error importing students:", error);
     res.status(500).json({ message: "Internal Server Error" });
