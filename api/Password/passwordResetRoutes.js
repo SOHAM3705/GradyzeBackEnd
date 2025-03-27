@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
+const User = require("../../models/useradmin");
 const crypto = require("crypto");
 const { resetPasswordEmail } = require("../utils/resetPasswordEmail");
 const { Resend } = require("resend");
