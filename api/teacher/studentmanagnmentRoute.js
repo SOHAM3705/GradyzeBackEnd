@@ -238,26 +238,30 @@ router.post("/add-student", async (req, res) => {
 });
 
 
-
-// ✅ Fetch Students for Class Teacher
-router.get("/students/:teacherId", async (req, res) => {
+// Get students in teacher's assigned class
+router.get("/:teacherId/students", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // ✅ Find Class Teacher
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher || !teacher.isClassTeacher) {
-      return res.status(403).json({ message: "Not authorized to view students" });
+    // Find the class teacher
+    const teacher = await Teacher.findOne({
+      _id: teacherId,
+      isClassTeacher: true,
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ message: "Class teacher not found" });
     }
 
-    // ✅ Fetch students based on assigned class
     const { year, division } = teacher.assignedClass;
+
+    // Fetch students who belong to the same year & division
     const students = await Student.find({ year, division });
 
-    res.status(200).json({ students });
+    res.json({ year, division, students });
   } catch (error) {
     console.error("Error fetching students:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
