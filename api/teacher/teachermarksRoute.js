@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const Teacher = require("../models/teacheraccount");
-const Student = require("../models/studentModel");
-const Marks = require("../models/marksschema");
+const Teacher = require("../../models/teacheraccount");
+const Student = require("../../models/studentModel");
+const Marks = require("../../models/marksschema");
 const twilio = require("twilio");
 
 // Get assigned divisions for a class teacher
@@ -406,74 +406,5 @@ router.get("/dashboard/:teacherId", async (req, res) => {
   }
 });
 
-// Twilio Configuration
-const TWILIO_SID = "your_twilio_sid";
-const TWILIO_AUTH_TOKEN = "your_twilio_auth_token";
-const TWILIO_PHONE = "+1234567890"; // Your Twilio phone number
 
-const twilioClient = new twilio(TWILIO_SID, TWILIO_AUTH_TOKEN);
-
-// Notify Low-Performing Students via SMS
-router.post("/notify-sms/:teacherId", async (req, res) => {
-  try {
-    const { teacherId } = req.params;
-    const THRESHOLD = 35; // Set passing percentage
-
-    // Find the class assigned to the teacher
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher || !teacher.isClassTeacher) {
-      return res.status(403).json({ message: "Unauthorized or not a class teacher" });
-    }
-
-    const { year, division } = teacher.assignedClass;
-
-    // Fetch students in the class
-    const students = await Student.find({ year, division });
-    const studentIds = students.map((s) => s._id);
-
-    // Fetch marks for these students
-    const marks = await Marks.find({ studentId: { $in: studentIds } });
-
-    let notifications = [];
-
-    for (const student of students) {
-      let studentMarks = marks.find((m) => m.studentId.toString() === student._id.toString());
-      let totalMarks = 0;
-      let totalSubjects = 0;
-      let subjectDetails = [];
-
-      if (studentMarks) {
-        studentMarks.exams.forEach((exam) => {
-          exam.subjects.forEach((subject) => {
-            totalMarks += subject.marksObtained;
-            totalSubjects++;
-            subjectDetails.push(`${subject.subjectName}: ${subject.marksObtained}/${subject.totalMarks}`);
-          });
-        });
-      }
-
-      let avgMarks = totalSubjects ? (totalMarks / totalSubjects) : 0;
-
-      if (avgMarks < THRESHOLD) {
-        // Send SMS Notification
-        const messageBody = `Dear ${student.name}, your average marks are below ${THRESHOLD}%. Exam Details:\n${subjectDetails.join(", ")}. Please improve your performance.`;
-
-        if (student.phone) { // Ensure phone number exists
-          await twilioClient.messages.create({
-            body: messageBody,
-            from: TWILIO_PHONE,
-            to: student.phone // Student’s registered phone number
-          });
-
-          notifications.push({ student: student.name, phone: student.phone, avgMarks });
-        }
-      }
-    }
-
-    res.json({ message: "SMS notifications sent successfully", notifications });
-  } catch (error) {
-    console.error("Error sending SMS notifications:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
 module.exports = router;
