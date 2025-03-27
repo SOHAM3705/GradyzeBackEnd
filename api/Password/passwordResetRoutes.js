@@ -43,11 +43,11 @@ router.post("/verify-email", async (req, res) => {
     }
 });
 
-// ✅ Step 2: Reset Password
 router.post("/change-password", async (req, res) => {
     try {
         const { token, newPassword, confirmPassword } = req.body;
 
+        // ✅ 1. Validate input fields
         if (!token || !newPassword || !confirmPassword) {
             return res.status(400).json({ message: "All fields are required" });
         }
@@ -56,33 +56,40 @@ router.post("/change-password", async (req, res) => {
             return res.status(400).json({ message: "Passwords do not match" });
         }
 
+        // ✅ 2. Verify JWT token
         let decoded;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
+            console.error("JWT Verification Error:", err);
             if (err.name === "TokenExpiredError") {
-                return res.status(400).json({ message: "Token has expired. Please request a new reset link." });
+                return res.status(400).json({ message: "Token expired. Please request a new reset link." });
             }
             return res.status(400).json({ message: "Invalid token." });
         }
 
-        // 🔍 Find user
+        console.log("Decoded Token:", decoded); // Debugging
+
+        // ✅ 3. Find user by email
         const user = await Admin.findOne({ email: decoded.email.toLowerCase() });
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // 🛠 Check if the new password is the same as the old password
+        // ✅ 4. Prevent setting the same password
         const isSamePassword = await bcrypt.compare(newPassword, user.password);
         if (isSamePassword) {
             return res.status(400).json({ message: "New password must be different from the old password." });
         }
 
-        // 🔒 Hash new password
+        // ✅ 5. Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // 🔄 Update user password
-        await Admin.updateOne({ email: decoded.email }, { $set: { password: hashedPassword } });
+        // ✅ 6. Update password in the database
+        await Admin.updateOne(
+            { email: decoded.email.toLowerCase() },
+            { $set: { password: hashedPassword } }
+        );
 
         res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {

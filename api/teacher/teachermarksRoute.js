@@ -2,7 +2,7 @@ const express = require("express");
 const Marks = require("../../models/marksschema");
 const Student = require("../../models/studentModel");
 const Teacher = require("../../models/teacheraccount");
-
+const jwt = require("jsonwebtoken");
 const router = express.Router();
 
 // Middleware to check teacher role
