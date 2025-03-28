@@ -3,6 +3,7 @@ const router = express.Router();
 const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
+const mongoose = require('mongoose');
 
 // Get assigned divisions for a class teacher
 router.get("/:teacherId/divisions", async (req, res) => {
