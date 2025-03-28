@@ -178,6 +178,60 @@ router.get("/subject-list/:teacherId", async (req, res) => {
   }
 });
 
+router.get('/:teacherId/student/:studentId', async (req, res) => {
+  try {
+    const { teacherId, studentId } = req.params;
+
+    // Find the student
+    const student = await Student.findById(studentId)
+      .populate('teacherId', 'name department');
+
+    // Verify teacher's access
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(403).json({ message: 'Teacher not found' });
+    }
+
+    // Check if the teacher has access to this student's division
+    if (teacher.isClassTeacher && teacher.assignedClass.division !== student.division) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    // Fetch student's marks
+    const studentMarks = await Marks.findOne({ 
+      studentId: studentId,
+      teacherId: teacherId
+    });
+
+    // Prepare detailed student performance data
+    const performanceDetails = {
+      _id: student._id,
+      name: student.name,
+      rollNo: student.rollNo,
+      division: student.division,
+      year: student.year,
+      teacher: {
+        name: student.teacherId.name,
+        department: student.teacherId.department
+      },
+      exams: studentMarks ? studentMarks.exams.map(exam => ({
+        examType: exam.examType,
+        subjects: exam.subjects.map(subject => ({
+          subjectName: subject.subjectName,
+          marksObtained: subject.marksObtained,
+          totalMarks: subject.totalMarks,
+          percentage: Math.round((subject.marksObtained / subject.totalMarks) * 100)
+        }))
+      })) : []
+    };
+
+    res.json(performanceDetails);
+  } catch (error) {
+    console.error('Error fetching student details:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 
 // Get student marks for a specific exam type
 router.get("/:teacherId/marks", async (req, res) => {
