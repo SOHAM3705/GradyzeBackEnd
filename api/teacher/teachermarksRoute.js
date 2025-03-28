@@ -232,6 +232,74 @@ router.get('/:teacherId/student/:studentId', async (req, res) => {
   }
 });
 
+// API endpoint to fetch marks for a specific teacher's subject
+router.get('/:teacherId/subject/:subjectName/students', 
+  async (req, res) => {
+      try {
+          const { teacherId, subjectName } = req.params;
+
+          // Validate teacher exists
+          const teacher = await Teacher.findById(teacherId);
+          if (!teacher) {
+              return res.status(404).json({ message: 'Teacher not found' });
+          }
+
+          // Find students for the teacher
+          const students = await Student.find({ 
+              teacherId: new mongoose.Types.ObjectId(teacherId) 
+          }).select('_id name rollNo email');
+
+          // Fetch marks for these students
+          const marksData = await Marks.find({
+              teacherId: new mongoose.Types.ObjectId(teacherId),
+              'exams.subjects.subjectName': subjectName
+          });
+
+          // Process marks data
+          const examData = {};
+          students.forEach(student => {
+              const studentMarks = marksData.find(
+                  mark => mark.studentId.toString() === student._id.toString()
+              );
+
+              if (studentMarks) {
+                  studentMarks.exams.forEach(exam => {
+                      const subjectMarks = exam.subjects.find(
+                          subject => subject.subjectName === subjectName
+                      );
+
+                      if (subjectMarks) {
+                          if (!examData[student._id]) {
+                              examData[student._id] = {};
+                          }
+                          examData[student._id][exam.examType] = {
+                              marksObtained: subjectMarks.marksObtained,
+                              totalMarks: subjectMarks.totalMarks
+                          };
+                      }
+                  });
+              }
+          });
+
+          res.json({
+              students: students.map(student => ({
+                  id: student._id,
+                  name: student.name,
+                  rollNo: student.rollNo,
+                  email: student.email
+              })),
+              examData: examData
+          });
+
+      } catch (error) {
+          console.error('Error fetching subject students marks:', error);
+          res.status(500).json({ 
+              message: 'Error fetching subject students marks', 
+              error: error.message 
+          });
+      }
+  }
+);
 
 // Get student marks for a specific exam type
 router.get("/:teacherId/marks", async (req, res) => {
