@@ -109,6 +109,28 @@ router.get("/:teacherId/exams", async (req, res) => {
   }
 });
 
+// Route to get teacher role details
+router.get("/teacher-role/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    // Fetch teacher details from database
+    const teacher = await Teacher.findById(teacherId);
+
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    res.json({
+      isClassTeacher: teacher.isClassTeacher,
+      isSubjectTeacher: teacher.isSubjectTeacher,
+    });
+  } catch (error) {
+    console.error("Error fetching teacher role:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 // Get students in teacher's assigned class
 router.get("/:teacherId/students", async (req, res) => {
   try {
@@ -136,23 +158,26 @@ router.get("/:teacherId/students", async (req, res) => {
   }
 });
 
-// Get subject list for a subject teacher
 router.get("/subject-list/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
+    console.log("Received teacherId:", teacherId);
 
-    // Find teacher
     const teacher = await Teacher.findById(teacherId);
+    console.log("Found Teacher:", teacher);
+
     if (!teacher || !teacher.isSubjectTeacher) {
       return res.status(404).json({ message: "Subject Teacher not found" });
     }
 
+    console.log("Subjects of Teacher:", teacher.subjects); // ✅ Debugging
     res.json({ subjects: teacher.subjects || [] });
   } catch (error) {
     console.error("Error fetching subject details:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 // Get student marks for a specific exam type
 router.get("/:teacherId/marks", async (req, res) => {
