@@ -16,7 +16,12 @@ const assignedClassSchema = new mongoose.Schema({
 const teacherSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true }, 
   email: { type: String, required: true, unique: true, trim: true }, 
-  password: { type: String, required: true }, 
+  password: { 
+    type: String, 
+    required: function () { return !this.googleId; } // Required if no Google ID
+  },  
+  googleId: { type: String, default: null }, // Google ID, default is null
+
   department: { type: String, required: true, trim: true }, 
 
   // ✅ Separate fields for each role
