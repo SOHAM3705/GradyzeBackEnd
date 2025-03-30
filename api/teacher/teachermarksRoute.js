@@ -352,6 +352,24 @@ router.get("/:teacherId/marks", async (req, res) => {
   }
 });
 
+router.get("/teachermarks/:teacherId/batches", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    
+    // Assuming batches are linked to the teacher in the database
+    const teacher = await Teacher.findById(teacherId).populate("batches");
+
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    res.json({ batches: teacher.batches || [] });
+  } catch (error) {
+    console.error("Error fetching batches:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Add or update student marks
 router.post("/:teacherId/marks", async (req, res) => {
   try {
