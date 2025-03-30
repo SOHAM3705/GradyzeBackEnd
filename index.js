@@ -26,7 +26,6 @@ const studentpassword = require("./api/Password/studentpassword");
 const studentResult = require("./api/student/studentResult");
 const googleauthRoutes = require("./api/Google/googleauth");
 const web = express();
-const express = require("express");
 const session = require("express-session");
 const passport = require("./config/googleauth");
 
