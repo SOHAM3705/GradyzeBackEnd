@@ -24,7 +24,11 @@ const studentSettingRoute = require("./api/student/studentsettingRoute");
 const studentnotificationRoute = require("./api/student/studentnotificationRoute");
 const studentpassword = require("./api/Password/studentpassword");
 const studentResult = require("./api/student/studentResult");
+const authRoutes = require("./api/Google/googleauth");
 const web = express();
+const express = require("express");
+const session = require("express-session");
+const passport = require("./config/googleauth");
 
 // Importing required modules
 require('dotenv').config();  
@@ -139,6 +143,8 @@ web.use("/api/teachersetting", teacherSettingRoute);
 web.use("/api/studentsetting", studentSettingRoute);
 web.use("/api/studentnotification",studentnotificationRoute);
 web.use("/api/studentResult",studentResult);
+web.use("/api/auth", authRoutes);
+
 
 
 // Serve static files from React's build folder
