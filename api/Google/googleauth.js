@@ -16,8 +16,17 @@ router.get(
       return res.status(401).json({ message: "Authentication failed!" });
     }
 
-    // Extract user details
-    const { user, token, role } = req.user;
+    // ✅ Extract user details
+    const { _id, email, role } = req.user; // `role` should be `Admin`, `Faculty`, or `Student`
+
+    // ✅ Generate JWT Token
+    const token = jwt.sign(
+      { id: _id, email, role }, // Payload
+      process.env.JWT_SECRET, // Secret Key
+      { expiresIn: "7d" } // Expiry
+    );
+
+    console.log("✅ Google Login Successful - Token:", token);
 
     // ✅ Redirect to frontend with token & role
     res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}&role=${role}`);
@@ -41,4 +50,3 @@ router.get("/verify-token", (req, res) => {
 });
 
 module.exports = router;
-
