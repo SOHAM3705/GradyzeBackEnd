@@ -24,7 +24,7 @@ const studentSettingRoute = require("./api/student/studentsettingRoute");
 const studentnotificationRoute = require("./api/student/studentnotificationRoute");
 const studentpassword = require("./api/Password/studentpassword");
 const studentResult = require("./api/student/studentResult");
-const authRoutes = require("./api/Google/googleauth");
+const googleauthRoutes = require("./api/Google/googleauth");
 const web = express();
 const express = require("express");
 const session = require("express-session");
@@ -143,9 +143,16 @@ web.use("/api/teachersetting", teacherSettingRoute);
 web.use("/api/studentsetting", studentSettingRoute);
 web.use("/api/studentnotification",studentnotificationRoute);
 web.use("/api/studentResult",studentResult);
-web.use("/api/auth", authRoutes);
+web.use("/api/auth", googleauthRoutes);
 
+web.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true
+}));
 
+web.use(passport.initialize());
+web.use(passport.session());
 
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
