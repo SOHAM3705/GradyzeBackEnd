@@ -3,9 +3,9 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 
-const Admin = require("../../models/useradmin");
-const Faculty = require("../../models/teacheraccount");
-const Student = require("../../models/studentModel");
+const Admin = require("../models/useradmin");
+const Faculty = require("../models/teacheraccount");
+const Student = require("../models/studentModel");
 
 dotenv.config();
 
