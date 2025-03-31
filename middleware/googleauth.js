@@ -1,13 +1,8 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const jwt = require("jsonwebtoken");
-const dotenv = require("dotenv");
-
 const Admin = require("../models/useradmin");
-const Faculty = require("../models/teacheraccount");
+const Teacher = require("../models/teacheraccount");
 const Student = require("../models/studentModel");
-
-dotenv.config();
 
 // ✅ Google OAuth Strategy
 passport.use(
@@ -15,15 +10,13 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback",
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails[0].value;
         const googleId = profile.id;
-        let user = null;
-        let role = null;
-
+        
         // ✅ Check in Admin Collection
         let admin = await Admin.findOne({ email });
         if (admin) {
@@ -31,49 +24,33 @@ passport.use(
             admin.googleId = googleId; // Store Google ID for future logins
             await admin.save();
           }
-          user = admin;
-          role = "admin";
+          // Pass role as separate parameter instead of modifying the database
+          return done(null, admin, { role: "admin" });
         }
-
-        // ✅ Check in Faculty Collection
-        if (!user) {
-          let faculty = await Faculty.findOne({ email });
-          if (faculty) {
-            if (!faculty.googleId) {
-              faculty.googleId = googleId;
-              await faculty.save();
-            }
-            user = faculty;
-            role = "faculty";
+        
+        // ✅ Check in Teacher Collection
+        let teacher = await Teacher.findOne({ email });
+        if (teacher) {
+          if (!teacher.googleId) {
+            teacher.googleId = googleId;
+            await teacher.save();
           }
+          return done(null, teacher, { role: "teacher" });
         }
-
+        
         // ✅ Check in Student Collection
-        if (!user) {
-          let student = await Student.findOne({ email });
-          if (student) {
-            if (!student.googleId) {
-              student.googleId = googleId;
-              await student.save();
-            }
-            user = student;
-            role = "student";
+        let student = await Student.findOne({ email });
+        if (student) {
+          if (!student.googleId) {
+            student.googleId = googleId;
+            await student.save();
           }
+          return done(null, student, { role: "student" });
         }
-
-        // ❌ If user not found
-        if (!user) {
-          return done(null, false, { message: "No account found. Contact Admin." });
-        }
-
-        // ✅ Generate JWT Token
-        const token = jwt.sign(
-          { id: user._id, email: user.email, role },
-          process.env.JWT_SECRET,
-          { expiresIn: "7d" }
-        );
-
-        return done(null, { user, token, role });
+        
+        // ❌ If user not found in any collection
+        return done(null, false, { message: "No account found. Contact Admin." });
+        
       } catch (error) {
         return done(error, null);
       }
@@ -82,7 +59,26 @@ passport.use(
 );
 
 // ✅ Serialize & Deserialize User
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((obj, done) => done(null, obj));
+passport.serializeUser((user, done) => {
+  done(null, { id: user._id, collection: user.constructor.modelName });
+});
+
+passport.deserializeUser(async (obj, done) => {
+  try {
+    let user;
+    // Determine which collection to query based on saved info
+    if (obj.collection === "Admin") {
+      user = await Admin.findById(obj.id);
+    } else if (obj.collection === "Teacher") {
+      user = await Teacher.findById(obj.id);
+    } else if (obj.collection === "Student") {
+      user = await Student.findById(obj.id);
+    }
+    
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
 
 module.exports = passport;
