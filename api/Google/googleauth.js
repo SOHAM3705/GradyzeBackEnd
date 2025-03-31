@@ -7,7 +7,6 @@ const router = express.Router();
 // ✅ Google Auth Route (Redirect to Google)
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
-// ✅ Google Auth Callback Route
 router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/login" }),
@@ -15,26 +14,36 @@ router.get(
     if (!req.user) {
       return res.status(401).json({ message: "Authentication failed!" });
     }
-    
-    // Get role from authInfo that was passed as the third parameter in the strategy
-    const role = req.authInfo.role; // Will be "admin", "teacher", or "student"
-    
-    // Extract user ID and email
-    const { _id, email } = req.user;
-    
+
+    const role = req.authInfo.role; // Get user role (admin, teacher, student)
+    const { _id, email } = req.user; // Extract user ID and email
+
     // ✅ Generate JWT Token
     const token = jwt.sign(
       { id: _id, email, role }, // Include role in the payload
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-    
+
     console.log("✅ Google Login Successful - Token:", token);
-    
-    // ✅ Redirect to frontend with token & role
-    res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}&role=${role}`);
+    console.log("🔹 User Role:", role);
+
+    // ✅ Define role-based frontend redirect paths
+    let frontendRedirectPath = "/login"; // Default fallback
+
+    if (role === "admin") {
+      frontendRedirectPath = "/adminlogin";
+    } else if (role === "teacher") {
+      frontendRedirectPath = "/teacherlogin";
+    } else if (role === "student") {
+      frontendRedirectPath = "/studentlogin";
+    }
+
+    // ✅ Redirect to the correct frontend login page with token & role
+    res.redirect(`${process.env.FRONTEND_URL}${frontendRedirectPath}?token=${token}&role=${role}`);
   }
 );
+
 
 // ✅ Token Verification Route
 router.get("/verify-token", (req, res) => {
