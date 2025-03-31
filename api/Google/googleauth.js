@@ -1,5 +1,5 @@
 const express = require("express");
-const passport = require("../middleware/googleauth"); // Adjust path as needed
+const passport = require("../../middleware/googleauth"); // Adjust path as needed
 const jwt = require("jsonwebtoken");
 
 const router = express.Router();
