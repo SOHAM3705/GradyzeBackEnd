@@ -16,42 +16,28 @@ passport.use(
       try {
         const email = profile.emails[0].value;
         const googleId = profile.id;
-        
+
         // ✅ Check in Admin Collection
-        let admin = await Admin.findOne({ email });
-        if (admin) {
-          if (!admin.googleId) {
-            admin.googleId = googleId; // Store Google ID for future logins
-            await admin.save();
+        let user = await Admin.findOne({ email }) || 
+                   await Teacher.findOne({ email }) || 
+                   await Student.findOne({ email });
+
+        if (user) {
+          // Store Google ID for future logins if not already stored
+          if (!user.googleId) {
+            user.googleId = googleId;
+            await user.save();
           }
-          // Pass role as separate parameter instead of modifying the database
-          return done(null, admin, { role: "admin" });
+          // Pass role based on the user model
+          const role = user.constructor.modelName.toLowerCase(); // Convert to lowercase for consistency
+          return done(null, user, { role });
         }
-        
-        // ✅ Check in Teacher Collection
-        let teacher = await Teacher.findOne({ email });
-        if (teacher) {
-          if (!teacher.googleId) {
-            teacher.googleId = googleId;
-            await teacher.save();
-          }
-          return done(null, teacher, { role: "teacher" });
-        }
-        
-        // ✅ Check in Student Collection
-        let student = await Student.findOne({ email });
-        if (student) {
-          if (!student.googleId) {
-            student.googleId = googleId;
-            await student.save();
-          }
-          return done(null, student, { role: "student" });
-        }
-        
+
         // ❌ If user not found in any collection
         return done(null, false, { message: "No account found. Contact Admin." });
-        
+
       } catch (error) {
+        console.error("❌ Error during Google authentication:", error);
         return done(error, null);
       }
     }
@@ -59,26 +45,33 @@ passport.use(
 );
 
 // ✅ Serialize & Deserialize User
-passport.serializeUser((user, done) => {
+passport.serializeUser ((user, done) => {
   done(null, { id: user._id, collection: user.constructor.modelName });
 });
 
-passport.deserializeUser(async (obj, done) => {
+passport.deserializeUser (async (obj, done) => {
   try {
     let user;
     // Determine which collection to query based on saved info
-    if (obj.collection === "Admin") {
-      user = await Admin.findById(obj.id);
-    } else if (obj.collection === "Teacher") {
-      user = await Teacher.findById(obj.id);
-    } else if (obj.collection === "Student") {
-      user = await Student.findById(obj.id);
+    switch (obj.collection) {
+      case "Admin":
+        user = await Admin.findById(obj.id);
+        break;
+      case "Teacher":
+        user = await Teacher.findById(obj.id);
+        break;
+      case "Student":
+        user = await Student.findById(obj.id);
+        break;
+      default:
+        return done(new Error("Invalid user type"), null);
     }
-    
+
     done(null, user);
   } catch (error) {
+    console.error("❌ Error during user deserialization:", error);
     done(error, null);
   }
 });
 
-module.exports = passport;
+module.exports = passport;  
