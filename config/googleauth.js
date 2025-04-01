@@ -1,3 +1,5 @@
+// googleauth.config.js
+
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const jwt = require("jsonwebtoken");
@@ -5,6 +7,7 @@ const Admin = require("../models/useradmin");
 const Teacher = require("../models/teacheraccount");
 const Student = require("../models/studentModel");
 
+// ✅ Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -15,37 +18,58 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails[0].value;
+        const googleId = profile.id;
 
-        // Check if the user exists in Admin, Teacher, or Student collections
-        let user = await Admin.findOne({ email });
-        let role = "admin";
+        // ✅ Check in Admin, Teacher, and Student collections
+        let user = await Admin.findOne({ email }) || await Teacher.findOne({ email }) || await Student.findOne({ email });
 
-        if (!user) {
-          user = await Teacher.findOne({ email });
-          role = "teacher";
-        }
-        if (!user) {
-          user = await Student.findOne({ email });
-          role = "student";
-        }
-        
-        if (!user) {
-          return done(null, false, { message: "No account found for this email" });
+        if (user) {
+          // Store Google ID for future logins if not already stored
+          if (!user.googleId) {
+            user.googleId = googleId;
+            await user.save();
+          }
+          // Pass role based on the user model
+          const role = user.constructor.modelName.toLowerCase(); // Convert to lowercase for consistency
+          return done(null, user, { role });
         }
 
-        // Generate JWT token
-        const token = jwt.sign(
-          { id: user._id, role },
-          process.env.JWT_SECRET,
-          { expiresIn: "1h" }
-        );
+        // ❌ If user not found in any collection
+        return done(null, false, { message: "No account found. Contact Admin." });
 
-        return done(null, { user, token, role });
       } catch (error) {
-        return done(error, false);
+        return done(error, null);
       }
     }
   )
 );
+
+// ✅ Serialize & Deserialize User
+passport.serializeUser((user, done) => {
+  done(null, { id: user._id, collection: user.constructor.modelName });
+});
+
+passport.deserializeUser(async (obj, done) => {
+  try {
+    let user;
+    // Determine which collection to query based on saved info
+    switch (obj.collection) {
+      case "Admin":
+        user = await Admin.findById(obj.id);
+        break;
+      case "Teacher":
+        user = await Teacher.findById(obj.id);
+        break;
+      case "Student":
+        user = await Student.findById(obj.id);
+        break;
+      default:
+        return done(new Error("Invalid user type"), null);
+    }
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
 
 module.exports = passport;

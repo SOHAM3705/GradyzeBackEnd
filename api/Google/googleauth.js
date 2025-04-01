@@ -21,7 +21,11 @@ router.get(
     const role = req.authInfo.role; // Get user role (admin, teacher, student)
     const { _id, email } = req.user; // Extract user ID and email
 
-    // ✅ Generate JWT Token
+    if (!process.env.JWT_SECRET) {
+      throw new Error("Missing JWT_SECRET in environment variables");
+    }
+
+    // ✅ Generate JWT Token (for use in frontend)
     const token = jwt.sign(
       { id: _id, email, role }, // Include role in the payload
       process.env.JWT_SECRET,
@@ -50,11 +54,11 @@ router.get(
     }
 
     // ✅ Redirect to the correct frontend login page with token & role
-    res.redirect(`${process.env.FRONTEND_URL}${frontendRedirectPath}?token=${token}&role=${role}`);
+    res.redirect(`${process.env.FRONTEND_URL}${frontendRedirectPath}?token=${encodeURIComponent(token)}&role=${role}`);
   }
 );
 
-// ✅ Token Verification Route
+// ✅ Token Verification Route (for verifying JWT)
 router.get("/verify-token", (req, res) => {
   const token = req.headers.authorization?.split(" ")[1]; // Get token from headers
   
