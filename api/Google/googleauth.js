@@ -1,3 +1,7 @@
+const express = require('express');
+
+const router = express.Router();
+
 const { generateToken, verifyToken } = require('../../utils/jwt');
 
 router.get('/google/callback',
