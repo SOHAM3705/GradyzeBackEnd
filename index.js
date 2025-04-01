@@ -76,15 +76,20 @@ module.exports = connectDB;
 // Connect to MongoDB
 connectDB();
 
-// Session Middleware
 web.use(
   session({
-      secret: process.env.JWT_SECRET,
-      resave: false,
-      saveUninitialized: false
+    secret: process.env.JWT_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      httpOnly: true, // Prevent client-side JS from accessing the cookie
+      maxAge: 1000 * 60 * 60 * 24 // Session expires in 1 day
+    }
   })
 );
 
+// Initialize Passport
 web.use(passport.initialize());
 web.use(passport.session());
 
