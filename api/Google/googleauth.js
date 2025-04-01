@@ -1,5 +1,5 @@
 const express = require("express");
-const passport = require("../../middleware/passport");
+const passport = require("../../config/passport");
 const router = express.Router();
 
 // Google OAuth Route

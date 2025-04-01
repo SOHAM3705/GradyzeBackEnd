@@ -27,7 +27,7 @@ const studentResult = require("./api/student/studentResult");
 const googleauthRoutes = require("./api/Google/googleauth");
 const web = express();
 const session = require("express-session");
-const passport = require("./config/googleauth");
+const passport = require("./config/passport");
 const prerequisitetest = require("./api/teacher/Prerequisitetest"); // Assuming you create the prerequisitetest route
 
 // Importing required modules
@@ -76,6 +76,17 @@ module.exports = connectDB;
 // Connect to MongoDB
 connectDB();
 
+// Session Middleware
+web.use(
+  session({
+      secret: process.env.JWT_SECRET,
+      resave: false,
+      saveUninitialized: false
+  })
+);
+
+web.use(passport.initialize());
+web.use(passport.session());
 
 // Middleware to parse JSON
 web.use(express.json());
@@ -146,14 +157,6 @@ web.use("/api/studentResult",studentResult);
 web.use("/api/auth", googleauthRoutes);
 web.use("/api/teachertest", prerequisitetest); // Assuming you create the prerequisitetest route
 
-web.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: true
-}));
-
-web.use(passport.initialize());
-web.use(passport.session());
 
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
