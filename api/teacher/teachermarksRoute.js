@@ -61,6 +61,59 @@ router.get("/:teacherId/subjects", async (req, res) => {
   }
 });
 
+router.get("/students-by-subject/:teacherId", async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    // Find the Subject Teacher & Assigned Subjects
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+    if (!teacher.isSubjectTeacher) {
+      return res.status(403).json({ message: "Not authorized to fetch students" });
+    }
+
+    const subjects = teacher.subjects; // Access the subjects array
+    console.log("Teacher Object:", teacher); // Debugging line
+    console.log("Assigned Subjects:", subjects); // Debugging line
+
+    // Check if subjects is defined and is an array
+    if (!Array.isArray(subjects)) {
+      return res.status(400).json({ message: "Assigned subjects are not defined or not an array" });
+    }
+
+    // Fetch students for each subject based on year & division
+    const studentData = {};
+    for (const subject of subjects) {
+      if (!subject.year || !subject.division) {
+        console.error("Subject missing year or division:", subject);
+        continue;
+      }
+
+      // Use a composite key for year and division
+      const key = `${subject.year}-${subject.division}`;
+      if (!studentData[key]) {
+        studentData[key] = [];
+      }
+
+      const students = await Student.find({
+        year: subject.year,
+        division: subject.division,
+      });
+
+      studentData[key].push(...students); // Store students under the composite key
+    }
+
+    console.log("Student Data:", studentData); // Debugging line
+
+    res.status(200).json({ subjects, studentData });
+  } catch (error) {
+    console.error("Error fetching students for subjects:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 // Get subjects assigned to a class teacher's division based on exam type & status
 router.get("/:teacherId/exams", async (req, res) => {
   try {
