@@ -10,7 +10,6 @@ router.get("/:teacherId/divisions", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Find the teacher who is a class teacher
     const teacher = await Teacher.findOne({
       _id: teacherId,
       isClassTeacher: true,
@@ -20,7 +19,6 @@ router.get("/:teacherId/divisions", async (req, res) => {
       return res.status(404).json({ message: "Class teacher not found" });
     }
 
-    // Return the assigned class (year & division)
     res.json({
       year: teacher.assignedClass.year,
       division: teacher.assignedClass.division,
@@ -36,7 +34,6 @@ router.get("/:teacherId/subjects", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Find the teacher who is a class teacher
     const teacher = await Teacher.findOne({
       _id: teacherId,
       isClassTeacher: true,
@@ -46,10 +43,7 @@ router.get("/:teacherId/subjects", async (req, res) => {
       return res.status(404).json({ message: "Class teacher not found" });
     }
 
-    // Extract assigned division and year
     const { year, division } = teacher.assignedClass;
-
-    // Find subjects that belong to the same year and division
     const assignedSubjects = teacher.subjects.filter(
       (subject) => subject.year === year && subject.division === division
     );
@@ -65,7 +59,6 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Find the Subject Teacher & Assigned Subjects
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {
       return res.status(404).json({ message: "Teacher not found" });
@@ -74,16 +67,11 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
       return res.status(403).json({ message: "Not authorized to fetch students" });
     }
 
-    const subjects = teacher.subjects; // Access the subjects array
-    console.log("Teacher Object:", teacher); // Debugging line
-    console.log("Assigned Subjects:", subjects); // Debugging line
-
-    // Check if subjects is defined and is an array
+    const subjects = teacher.subjects;
     if (!Array.isArray(subjects)) {
       return res.status(400).json({ message: "Assigned subjects are not defined or not an array" });
     }
 
-    // Fetch students for each subject based on year & division
     const studentData = {};
     for (const subject of subjects) {
       if (!subject.year || !subject.division) {
@@ -91,7 +79,6 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
         continue;
       }
 
-      // Use a composite key for year and division
       const key = `${subject.year}-${subject.division}`;
       if (!studentData[key]) {
         studentData[key] = [];
@@ -102,10 +89,8 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
         division: subject.division,
       });
 
-      studentData[key].push(...students); // Store students under the composite key
+      studentData[key].push(...students);
     }
-
-    console.log("Student Data:", studentData); // Debugging line
 
     res.status(200).json({ subjects, studentData });
   } catch (error) {
@@ -118,9 +103,8 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
 router.get("/:teacherId/exams", async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { examType, status } = req.query; // Status and exam type from request
+    const { examType, status } = req.query;
 
-    // Find the class teacher
     const teacher = await Teacher.findOne({
       _id: teacherId,
       isClassTeacher: true,
@@ -131,27 +115,22 @@ router.get("/:teacherId/exams", async (req, res) => {
     }
 
     const { year, division } = teacher.assignedClass;
-
-    // Get all subjects for the teacher's assigned class
     const assignedSubjects = teacher.subjects.filter(
       (subject) => subject.year === year && subject.division === division
     );
 
-    // Fetch marks data that matches the given exam type & status
     const marksData = await Marks.find({
       teacherId,
       academicYear: year,
       "exams.examType": examType,
     });
 
-    // Extract subjects that have marks recorded for the given exam type
     const subjectsWithExam = marksData.flatMap((entry) =>
       entry.exams
         .filter((exam) => exam.examType === examType)
         .flatMap((exam) => exam.subjects.map((sub) => sub.subjectName))
     );
 
-    // Filter assigned subjects that match the recorded subjects
     const filteredSubjects = assignedSubjects.filter((subject) =>
       subjectsWithExam.includes(subject.name)
     );
@@ -168,7 +147,6 @@ router.get("/teacher-role/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Fetch teacher details from database
     const teacher = await Teacher.findById(teacherId);
 
     if (!teacher) {
@@ -190,7 +168,6 @@ router.get("/:teacherId/students", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Find the class teacher
     const teacher = await Teacher.findOne({
       _id: teacherId,
       isClassTeacher: true,
@@ -202,7 +179,6 @@ router.get("/:teacherId/students", async (req, res) => {
 
     const { year, division } = teacher.assignedClass;
 
-    // Fetch students who belong to the same year & division
     const students = await Student.find({ year, division });
 
     res.json({ year, division, students });
@@ -215,16 +191,12 @@ router.get("/:teacherId/students", async (req, res) => {
 router.get("/subject-list/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
-    console.log("Received teacherId:", teacherId);
 
     const teacher = await Teacher.findById(teacherId);
-    console.log("Found Teacher:", teacher);
-
     if (!teacher || !teacher.isSubjectTeacher) {
       return res.status(404).json({ message: "Subject Teacher not found" });
     }
 
-    console.log("Subjects of Teacher:", teacher.subjects); // ✅ Debugging
     res.json({ subjects: teacher.subjects || [] });
   } catch (error) {
     console.error("Error fetching subject details:", error);
@@ -236,28 +208,23 @@ router.get('/:teacherId/student/:studentId', async (req, res) => {
   try {
     const { teacherId, studentId } = req.params;
 
-    // Find the student
     const student = await Student.findById(studentId)
       .populate('teacherId', 'name department');
 
-    // Verify teacher's access
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) {
       return res.status(403).json({ message: 'Teacher not found' });
     }
 
-    // Check if the teacher has access to this student's division
     if (teacher.isClassTeacher && teacher.assignedClass.division !== student.division) {
       return res.status(403).json({ message: 'Unauthorized access' });
     }
 
-    // Fetch student's marks
-    const studentMarks = await Marks.findOne({ 
+    const studentMarks = await Marks.findOne({
       studentId: studentId,
       teacherId: teacherId
     });
 
-    // Prepare detailed student performance data
     const performanceDetails = {
       _id: student._id,
       name: student.name,
@@ -272,9 +239,9 @@ router.get('/:teacherId/student/:studentId', async (req, res) => {
         examType: exam.examType,
         subjects: exam.subjects.map(subject => ({
           subjectName: subject.subjectName,
-          marksObtained: subject.marksObtained,
-          totalMarks: subject.totalMarks,
-          percentage: Math.round((subject.marksObtained / subject.totalMarks) * 100)
+          marksObtained: subject.status === "Absent" ? "Absent" : subject.marksObtained,
+          totalMarks: subject.status === "Absent" ? "Absent" : subject.totalMarks,
+          percentage: subject.status === "Absent" ? "Absent" : Math.round((subject.marksObtained / subject.totalMarks) * 100)
         }))
       })) : []
     };
@@ -287,29 +254,25 @@ router.get('/:teacherId/student/:studentId', async (req, res) => {
 });
 
 // API endpoint to fetch marks for a specific teacher's subject
-router.get('/:teacherId/subject/:subjectName/students', 
+router.get('/:teacherId/subject/:subjectName/students',
   async (req, res) => {
       try {
           const { teacherId, subjectName } = req.params;
 
-          // Validate teacher exists
           const teacher = await Teacher.findById(teacherId);
           if (!teacher) {
               return res.status(404).json({ message: 'Teacher not found' });
           }
 
-          // Find students for the teacher
-          const students = await Student.find({ 
-              teacherId: new mongoose.Types.ObjectId(teacherId) 
+          const students = await Student.find({
+              teacherId: new mongoose.Types.ObjectId(teacherId)
           }).select('_id name rollNo email');
 
-          // Fetch marks for these students
           const marksData = await Marks.find({
               teacherId: new mongoose.Types.ObjectId(teacherId),
               'exams.subjects.subjectName': subjectName
           });
 
-          // Process marks data
           const examData = {};
           students.forEach(student => {
               const studentMarks = marksData.find(
@@ -327,8 +290,8 @@ router.get('/:teacherId/subject/:subjectName/students',
                               examData[student._id] = {};
                           }
                           examData[student._id][exam.examType] = {
-                              marksObtained: subjectMarks.marksObtained,
-                              totalMarks: subjectMarks.totalMarks
+                              marksObtained: subjectMarks.status === "Absent" ? "Absent" : subjectMarks.marksObtained,
+                              totalMarks: subjectMarks.status === "Absent" ? "Absent" : subjectMarks.totalMarks
                           };
                       }
                   });
@@ -347,9 +310,9 @@ router.get('/:teacherId/subject/:subjectName/students',
 
       } catch (error) {
           console.error('Error fetching subject students marks:', error);
-          res.status(500).json({ 
-              message: 'Error fetching subject students marks', 
-              error: error.message 
+          res.status(500).json({
+              message: 'Error fetching subject students marks',
+              error: error.message
           });
       }
   }
@@ -359,9 +322,8 @@ router.get('/:teacherId/subject/:subjectName/students',
 router.get("/:teacherId/marks", async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { examType } = req.query; // Exam type from request
+    const { examType } = req.query;
 
-    // Find the class teacher
     const teacher = await Teacher.findOne({
       _id: teacherId,
       isClassTeacher: true,
@@ -373,17 +335,14 @@ router.get("/:teacherId/marks", async (req, res) => {
 
     const { year, division } = teacher.assignedClass;
 
-    // Fetch students who belong to the same year & division
     const students = await Student.find({ year, division }).select("_id name rollNo");
 
-    // Fetch marks data for students in this division and exam type
     const marksData = await Marks.find({
       studentId: { $in: students.map((s) => s._id) },
       academicYear: year,
       "exams.examType": examType,
     });
 
-    // Format response with student marks
     const studentMarks = students.map((student) => {
       const studentMarksEntry = marksData.find((m) => m.studentId.toString() === student._id.toString());
 
@@ -393,7 +352,11 @@ router.get("/:teacherId/marks", async (req, res) => {
         marks: studentMarksEntry
           ? studentMarksEntry.exams
               .filter((exam) => exam.examType === examType)
-              .flatMap((exam) => exam.subjects)
+              .flatMap((exam) => exam.subjects.map(subject => ({
+                subjectName: subject.subjectName,
+                marksObtained: subject.status === "Absent" ? "Absent" : subject.marksObtained,
+                totalMarks: subject.status === "Absent" ? "Absent" : subject.totalMarks,
+              })))
           : [],
       };
     });
@@ -408,8 +371,7 @@ router.get("/:teacherId/marks", async (req, res) => {
 router.get("/teachermarks/:teacherId/batches", async (req, res) => {
   try {
     const { teacherId } = req.params;
-    
-    // Assuming batches are linked to the teacher in the database
+
     const teacher = await Teacher.findById(teacherId).populate("batches");
 
     if (!teacher) {
@@ -423,94 +385,142 @@ router.get("/teachermarks/:teacherId/batches", async (req, res) => {
   }
 });
 
-// Add or update student marks
-router.post("/:teacherId/marks", async (req, res) => {
+// Add Marks (Create)
+router.post("/add", async (req, res) => {
   try {
-    const { teacherId } = req.params;
-    const { studentId, examType, subjectName, marksObtained, totalMarks, academicYear } = req.body;
+    const { teacherId, studentId, academicYear, examType, subjectName, marksObtained, totalMarks, status } = req.body;
 
-    if (!studentId || !examType || !subjectName || marksObtained == null || !totalMarks || !academicYear) {
+    if (!teacherId || !studentId || !academicYear || !examType || !subjectName || marksObtained === undefined || !totalMarks || !status) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if marks entry exists for this student & academic year
+    if (marksObtained < 0 || totalMarks < 1 || !["Unit Test", "Prelim", "Re-Unit", "Re-Prelim"].includes(examType) || !["Present", "Absent"].includes(status)) {
+      return res.status(400).json({ message: "Invalid input data" });
+    }
+
     let marksEntry = await Marks.findOne({ studentId, academicYear });
 
     if (!marksEntry) {
-      // Create new marks entry
       marksEntry = new Marks({
         studentId,
         teacherId,
         academicYear,
-        exams: [
-          {
-            examType,
-            subjects: [{ subjectName, marksObtained, totalMarks }],
-          },
-        ],
+        exams: [{
+          examType,
+          subjects: [{
+            subjectName,
+            marksObtained: status === "Absent" ? undefined : marksObtained,
+            totalMarks: status === "Absent" ? undefined : totalMarks,
+            status
+          }]
+        }]
       });
     } else {
-      // Update existing marks entry
-      let exam = marksEntry.exams.find((e) => e.examType === examType);
-      if (!exam) {
-        marksEntry.exams.push({ examType, subjects: [{ subjectName, marksObtained, totalMarks }] });
-      } else {
-        let subject = exam.subjects.find((s) => s.subjectName === subjectName);
-        if (subject) {
-          subject.marksObtained = marksObtained;
-          subject.totalMarks = totalMarks;
-        } else {
-          exam.subjects.push({ subjectName, marksObtained, totalMarks });
+      let examIndex = marksEntry.exams.findIndex(exam => exam.examType === examType);
+
+      if (examIndex > -1) {
+        let subjectIndex = marksEntry.exams[examIndex].subjects.findIndex(sub => sub.subjectName === subjectName);
+        if (subjectIndex > -1) {
+          return res.status(400).json({ message: "Marks already exist for this subject in this exam" });
         }
+
+        marksEntry.exams[examIndex].subjects.push({ subjectName, marksObtained: status === "Absent" ? undefined : marksObtained, totalMarks: status === "Absent" ? undefined : totalMarks, status });
+      } else {
+        marksEntry.exams.push({
+          examType,
+          subjects: [{ subjectName, marksObtained: status === "Absent" ? undefined : marksObtained, totalMarks: status === "Absent" ? undefined : totalMarks, status }]
+        });
       }
     }
 
     await marksEntry.save();
-    res.json({ message: "Marks added/updated successfully" });
+    res.status(201).json({ message: "Marks added successfully", marksEntry });
+
+  } catch (error) {
+    console.error("Error adding marks:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Update Marks
+router.put("/update", async (req, res) => {
+  try {
+    const { studentId, academicYear, examType, subjectName, marksObtained, totalMarks, status } = req.body;
+
+    if (!studentId || !academicYear || !examType || !subjectName || marksObtained === undefined || !totalMarks || !status) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (marksObtained < 0 || totalMarks < 1 || !["Present", "Absent"].includes(status)) {
+      return res.status(400).json({ message: "Invalid marks data" });
+    }
+
+    let marksEntry = await Marks.findOne({ studentId, academicYear });
+    if (!marksEntry) {
+      return res.status(404).json({ message: "Marks record not found" });
+    }
+
+    let examIndex = marksEntry.exams.findIndex(exam => exam.examType === examType);
+    if (examIndex === -1) {
+      return res.status(404).json({ message: "Exam not found" });
+    }
+
+    let subjectIndex = marksEntry.exams[examIndex].subjects.findIndex(sub => sub.subjectName === subjectName);
+    if (subjectIndex === -1) {
+      return res.status(404).json({ message: "Subject not found" });
+    }
+
+    marksEntry.exams[examIndex].subjects[subjectIndex].marksObtained = status === "Absent" ? undefined : marksObtained;
+    marksEntry.exams[examIndex].subjects[subjectIndex].totalMarks = status === "Absent" ? undefined : totalMarks;
+    marksEntry.exams[examIndex].subjects[subjectIndex].status = status;
+
+    await marksEntry.save();
+    res.status(200).json({ message: "Marks updated successfully", marksEntry });
+
   } catch (error) {
     console.error("Error updating marks:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// Delete student marks for a specific exam type and subject
-router.delete("/:teacherId/marks/:studentId", async (req, res) => {
+// Delete Marks
+router.delete("/delete", async (req, res) => {
   try {
-    const { teacherId, studentId } = req.params;
-    const { examType, subjectName, academicYear } = req.body;
+    const { studentId, academicYear, examType, subjectName } = req.body;
 
-    if (!examType || !subjectName || !academicYear) {
-      return res.status(400).json({ message: "Exam type, subject name, and academic year are required" });
+    if (!studentId || !academicYear || !examType || !subjectName) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Find the student's marks entry
     let marksEntry = await Marks.findOne({ studentId, academicYear });
-
     if (!marksEntry) {
       return res.status(404).json({ message: "Marks record not found" });
     }
 
-    // Find the specific exam
-    let exam = marksEntry.exams.find((e) => e.examType === examType);
-    if (!exam) {
-      return res.status(404).json({ message: "Exam type not found" });
+    let examIndex = marksEntry.exams.findIndex(exam => exam.examType === examType);
+    if (examIndex === -1) {
+      return res.status(404).json({ message: "Exam not found" });
     }
 
-    // Remove the subject from the exam
-    exam.subjects = exam.subjects.filter((s) => s.subjectName !== subjectName);
+    let subjectIndex = marksEntry.exams[examIndex].subjects.findIndex(sub => sub.subjectName === subjectName);
+    if (subjectIndex === -1) {
+      return res.status(404).json({ message: "Subject not found" });
+    }
 
-    // If no subjects left in the exam, remove the exam entry
-    marksEntry.exams = marksEntry.exams.filter((e) => e.subjects.length > 0);
+    marksEntry.exams[examIndex].subjects.splice(subjectIndex, 1);
 
-    // If no exams left, delete the entire marks document
+    if (marksEntry.exams[examIndex].subjects.length === 0) {
+      marksEntry.exams.splice(examIndex, 1);
+    }
+
     if (marksEntry.exams.length === 0) {
-      await Marks.deleteOne({ _id: marksEntry._id });
-      return res.json({ message: "All marks for this student have been deleted" });
+      await Marks.deleteOne({ studentId, academicYear });
+      return res.status(200).json({ message: "Marks record deleted successfully" });
     }
 
-    // Save updated marks entry
     await marksEntry.save();
-    res.json({ message: "Marks deleted successfully" });
+    res.status(200).json({ message: "Marks deleted successfully", marksEntry });
+
   } catch (error) {
     console.error("Error deleting marks:", error);
     res.status(500).json({ message: "Server error" });
@@ -522,7 +532,6 @@ router.get("/dashboard/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Find the class assigned to the teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isClassTeacher) {
       return res.status(403).json({ message: "Unauthorized or not a class teacher" });
@@ -530,10 +539,8 @@ router.get("/dashboard/:teacherId", async (req, res) => {
 
     const { year, division } = teacher.assignedClass;
 
-    // Fetch all students in the class
     const students = await Student.find({ year, division });
 
-    // Fetch marks for these students
     const studentIds = students.map((s) => s._id);
     const marks = await Marks.find({ studentId: { $in: studentIds } });
 
@@ -549,8 +556,10 @@ router.get("/dashboard/:teacherId", async (req, res) => {
       if (studentMarks) {
         studentMarks.exams.forEach((exam) => {
           examPerformance[exam.examType] = examPerformance[exam.examType] || { totalMarks: 0, count: 0 };
-          
+
           exam.subjects.forEach((subject) => {
+            if (subject.status === "Absent") return;
+
             subjectPerformance[subject.subjectName] = subjectPerformance[subject.subjectName] || { totalMarks: 0, count: 0 };
             subjectPerformance[subject.subjectName].totalMarks += subject.marksObtained;
             subjectPerformance[subject.subjectName].count++;
@@ -568,7 +577,6 @@ router.get("/dashboard/:teacherId", async (req, res) => {
       studentSummary.push({ studentId: student._id, name: student.name, avgMarks });
     });
 
-    // Calculate averages
     for (let subject in subjectPerformance) {
       subjectPerformance[subject].avgMarks = subjectPerformance[subject].totalMarks / subjectPerformance[subject].count;
     }
@@ -577,7 +585,6 @@ router.get("/dashboard/:teacherId", async (req, res) => {
       examPerformance[exam].avgMarks = examPerformance[exam].totalMarks / examPerformance[exam].count;
     }
 
-    // Sort students by performance
     studentSummary.sort((a, b) => b.avgMarks - a.avgMarks);
 
     res.json({
@@ -593,23 +600,23 @@ router.get("/dashboard/:teacherId", async (req, res) => {
   }
 });
 
-// ✅ Route to fetch subjects assigned (for Subject Teacher)
+// Route to fetch subjects assigned (for Subject Teacher)
 router.get("/subjects-list/:teacherId", async (req, res) => {
   try {
     const { teacherId } = req.params;
 
-    // Find teacher
     const teacher = await Teacher.findById(teacherId);
     if (!teacher || !teacher.isSubjectTeacher) {
       return res.status(404).json({ message: "Subject Teacher not found" });
     }
 
     res.json({
-      subjects: teacher.subjects, // Returns all assigned subjects
+      subjects: teacher.subjects,
     });
   } catch (error) {
     console.error("Error fetching subject details:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 module.exports = router;
