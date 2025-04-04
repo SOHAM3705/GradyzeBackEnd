@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const marksSchema = new mongoose.Schema({
   teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Faculty', required: true },
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
@@ -13,4 +15,4 @@ const marksSchema = new mongoose.Schema({
   ]
 });
 
-module.exports = mongoose.model("TeacherMarks", teacherMarksSchema);
+module.exports = mongoose.model("TeacherMarks", marksSchema);
