@@ -13,7 +13,6 @@ const teacherMarksSchema = new mongoose.Schema({
   },
   year: {
     type: String,
-    enum: ["First", "Second", "Third", "Fourth"],
     required: true,
   },
   examType: {
