@@ -454,7 +454,7 @@ router.put("/update", async (req, res) => {
 
 
 // ✅ ADD MARKS
-router.post("/add", authMiddleware, async (req, res) => {
+router.post("/add", async (req, res) => {
   const marksData = req.body;
 
   if (!Array.isArray(marksData) || marksData.length === 0) {
