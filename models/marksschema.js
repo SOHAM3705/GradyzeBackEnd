@@ -1,55 +1,43 @@
 const mongoose = require("mongoose");
 
-const subjectSchema = new mongoose.Schema({
-  subjectName: {
-    type: String,
+const teacherMarksSchema = new mongoose.Schema({
+  teacherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Faculty",
     required: true,
   },
-  marksObtained: {
-    type: Number,
-    min: 0,
-  },
-  totalMarks: {
-    type: Number,
-    min: 1,
-  },
-  status: {
-    type: String,
-    enum: ["Present", "Absent"],
-    required: true,
-  }
-}, { _id: false });
-
-const examSchema = new mongoose.Schema({
-  examType: {
-    type: String,
-    enum: ["Unit Test", "Prelim", "Re-Unit", "Re-Prelim"],
-    required: true,
-  },
-  subjects: [subjectSchema]
-}, { _id: false });
-
-const marksSchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Student",
     required: true,
   },
-  teacherId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Teacher",
+  year: {
+    type: String,
+    enum: ["First", "Second", "Third", "Fourth"],
     required: true,
   },
-  academicYear: {
+  examType: {
     type: String,
     required: true,
   },
-  exams: [examSchema]
-}, {
-  timestamps: true
-});
+  subjectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Subject",
+    required: true,
+  },
+  marksObtained: {
+    type: Number,
+    required: true,
+  },
+  totalMarks: {
+    type: Number,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ["Pass", "Fail", "Absent"],
+    required: true,
+  },
+}, { timestamps: true });
 
-// Optional: Prevent duplicate entries per student per academic year
-marksSchema.index({ studentId: 1, academicYear: 1 }, { unique: true });
-
-module.exports = mongoose.model("Marks", marksSchema);
+module.exports = mongoose.model("TeacherMarks", teacherMarksSchema);

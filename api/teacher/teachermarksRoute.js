@@ -453,135 +453,148 @@ router.put("/update", async (req, res) => {
 });
 
 
-// Add Marks Route
-router.post("/add", async (req, res) => {
+// ✅ ADD MARKS
+router.post("/add", authMiddleware, async (req, res) => {
+  const marksData = req.body;
+
+  if (!Array.isArray(marksData) || marksData.length === 0) {
+    return res.status(400).json({ message: "Invalid data format" });
+  }
+
   try {
-    const {
-      teacherId,
-      studentId,
-      academicYear,
-      examType,
-      subjectName,
-      marksObtained,
-      totalMarks,
-      status
-    } = req.body;
+    for (const entry of marksData) {
+      const { studentId, teacherId, year, examType, subjectId, marksObtained } = entry;
 
-    // Validate required fields
-    if (!teacherId || !studentId || !academicYear || !examType || !subjectName || !status) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (!["Unit Test", "Prelim", "Re-Unit", "Re-Prelim"].includes(examType)) {
-      return res.status(400).json({ message: "Invalid exam type" });
-    }
-
-    if (!["Present", "Absent"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    if (status === "Present") {
-      if (marksObtained === undefined || totalMarks === undefined) {
-        return res.status(400).json({ message: "Marks and total are required when status is Present" });
+      if (!studentId || !teacherId || !year || !examType || !subjectId || marksObtained === undefined) {
+        return res.status(400).json({ message: "All fields are required" });
       }
 
-      if (marksObtained < 0 || totalMarks < 1 || marksObtained > totalMarks) {
-        return res.status(400).json({ message: "Invalid marks values" });
-      }
-    }
+      const totalMarks = (examType === "unit-test" || examType === "re-unit-test") ? 30 : 70;
+      let status;
 
-    let marksEntry = await Marks.findOne({ studentId, academicYear });
-
-    const subjectData = {
-      subjectName,
-      marksObtained: status === "Absent" ? undefined : marksObtained,
-      totalMarks: status === "Absent" ? undefined : totalMarks,
-      status
-    };
-
-    if (!marksEntry) {
-      marksEntry = new Marks({
-        studentId,
-        teacherId,
-        academicYear,
-        exams: [{
-          examType,
-          subjects: [subjectData]
-        }]
-      });
-    } else {
-      const examIndex = marksEntry.exams.findIndex(exam => exam.examType === examType);
-
-      if (examIndex > -1) {
-        const subjectIndex = marksEntry.exams[examIndex].subjects.findIndex(sub => sub.subjectName === subjectName);
-        if (subjectIndex > -1) {
-          return res.status(400).json({ message: "Marks already exist for this subject in this exam" });
-        }
-        marksEntry.exams[examIndex].subjects.push(subjectData);
+      if (marksObtained === -1) {
+        status = "Absent";
       } else {
-        marksEntry.exams.push({
+        const passingMarks = (examType === "unit-test" || examType === "re-unit-test") ? 12 : 28;
+        status = marksObtained >= passingMarks ? "Pass" : "Fail";
+      }
+
+      let existingRecord = await Marks.findOne({
+        teacherId,
+        studentId,
+        examType,
+        year,
+      });
+
+      if (existingRecord) {
+        const existingExam = existingRecord.exams.find(
+          (exam) => exam.subjectId.toString() === subjectId.toString()
+        );
+
+        if (existingExam) {
+          existingExam.marksObtained = marksObtained;
+          existingExam.totalMarks = totalMarks;
+          existingExam.status = status;
+        } else {
+          existingRecord.exams.push({ subjectId, marksObtained, totalMarks, status });
+        }
+
+        await existingRecord.save();
+      } else {
+        const newRecord = new Marks({
+          teacherId,
+          studentId,
           examType,
-          subjects: [subjectData]
+          year,
+          exams: [{ subjectId, marksObtained, totalMarks, status }],
         });
+
+        await newRecord.save();
       }
     }
 
-    await marksEntry.save();
-    res.status(201).json({ message: "Marks added successfully", marksEntry });
-
+    res.status(200).json({ message: "Marks saved successfully" });
   } catch (error) {
-    console.error("Error adding marks:", error);
+    console.error("Add Marks Error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
 
-// Delete Marks
-// Delete Marks Route
-router.delete("/delete", async (req, res) => {
+// ✅ UPDATE MARKS
+router.put("/update/:id", authMiddleware, async (req, res) => {
+  const markId = req.params.id;
+  const { subjectId, marksObtained, examType } = req.body;
+
+  if (!subjectId || marksObtained === undefined || !examType) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
   try {
-    const { studentId, academicYear, examType, subjectName } = req.body;
-
-    if (!studentId || !academicYear || !examType || !subjectName) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const marksEntry = await Marks.findOne({ studentId, academicYear });
-    if (!marksEntry) {
+    const record = await Marks.findById(markId);
+    if (!record) {
       return res.status(404).json({ message: "Marks record not found" });
     }
 
-    const examIndex = marksEntry.exams.findIndex(exam => exam.examType === examType);
-    if (examIndex === -1) {
-      return res.status(404).json({ message: "Exam not found" });
-    }
+    const subjectIndex = record.exams.findIndex(
+      (exam) => exam.subjectId.toString() === subjectId.toString()
+    );
 
-    const subjectIndex = marksEntry.exams[examIndex].subjects.findIndex(sub => sub.subjectName === subjectName);
     if (subjectIndex === -1) {
-      return res.status(404).json({ message: "Subject not found" });
+      return res.status(404).json({ message: "Subject not found in exams" });
     }
 
-    marksEntry.exams[examIndex].subjects.splice(subjectIndex, 1);
+    const totalMarks = (examType === "unit-test" || examType === "re-unit-test") ? 30 : 70;
+    const passingMarks = examType.includes("unit") ? 12 : 28;
 
-    // Remove exam if no subjects remain
-    if (marksEntry.exams[examIndex].subjects.length === 0) {
-      marksEntry.exams.splice(examIndex, 1);
-    }
+    let status;
+    if (marksObtained === -1) status = "Absent";
+    else status = marksObtained >= passingMarks ? "Pass" : "Fail";
 
-    // Remove entire document if no exams remain
-    if (marksEntry.exams.length === 0) {
-      await Marks.deleteOne({ studentId, academicYear });
-      return res.status(200).json({ message: "All marks deleted for student in this academic year" });
-    }
+    record.exams[subjectIndex] = {
+      ...record.exams[subjectIndex],
+      marksObtained,
+      totalMarks,
+      status,
+    };
 
-    await marksEntry.save();
-    res.status(200).json({ message: "Subject marks deleted successfully", marksEntry });
-
+    await record.save();
+    res.status(200).json({ message: "Marks updated successfully" });
   } catch (error) {
-    console.error("Error deleting marks:", error);
+    console.error("Update Marks Error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
+// ✅ DELETE MARKS FOR A SUBJECT IN AN ENTRY
+router.delete("/delete/:id/:subjectId", authMiddleware, async (req, res) => {
+  const { id, subjectId } = req.params;
+
+  try {
+    const record = await Marks.findById(id);
+    if (!record) {
+      return res.status(404).json({ message: "Marks record not found" });
+    }
+
+    record.exams = record.exams.filter(
+      (exam) => exam.subjectId.toString() !== subjectId
+    );
+
+    if (record.exams.length === 0) {
+      await record.deleteOne();
+    } else {
+      await record.save();
+    }
+
+    res.status(200).json({ message: "Marks deleted successfully" });
+  } catch (error) {
+    console.error("Delete Marks Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+module.exports = router;
 
 
 
