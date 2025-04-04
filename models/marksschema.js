@@ -1,50 +1,55 @@
 const mongoose = require("mongoose");
 
+const subjectSchema = new mongoose.Schema({
+  subjectName: {
+    type: String,
+    required: true,
+  },
+  marksObtained: {
+    type: Number,
+    min: 0,
+  },
+  totalMarks: {
+    type: Number,
+    min: 1,
+  },
+  status: {
+    type: String,
+    enum: ["Present", "Absent"],
+    required: true,
+  }
+}, { _id: false });
+
+const examSchema = new mongoose.Schema({
+  examType: {
+    type: String,
+    enum: ["Unit Test", "Prelim", "Re-Unit", "Re-Prelim"],
+    required: true,
+  },
+  subjects: [subjectSchema]
+}, { _id: false });
+
 const marksSchema = new mongoose.Schema({
-  studentId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "Student", 
+  studentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Student",
     required: true,
-    index: true 
   },
-  teacherId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "Teacher", 
+  teacherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Teacher",
     required: true,
-    index: true 
   },
-  academicYear: { 
-    type: String, 
-    required: true, 
-    match: /^\d{4}-\d{2}$/ // Enforces format like "2024-25"
+  academicYear: {
+    type: String,
+    required: true,
   },
-  exams: [
-    {
-      examType: { 
-        type: String, 
-        required: true, 
-        enum: ["Unit Test", "Prelim", "Re-Unit", "Re-Prelim"] // Updated exam types
-      },
-      subjects: [
-        {
-          subjectName: { type: String, required: true },
-          marksObtained: { 
-            type: Number, 
-            required: true, 
-            min: 0 // Ensures non-negative values
-          },
-          totalMarks: { 
-            type: Number, 
-            required: true, 
-            min: 1 
-          }
-        }
-      ]
-    }
-  ],
-  createdAt: { type: Date, default: Date.now }
+  exams: [examSchema]
+}, {
+  timestamps: true
 });
 
-const Marks = mongoose.model("Marks", marksSchema);
+// Optional: Prevent duplicate entries per student per academic year
+marksSchema.index({ studentId: 1, academicYear: 1 }, { unique: true });
 
-module.exports = Marks;
+module.exports = mongoose.model("Marks", marksSchema);
