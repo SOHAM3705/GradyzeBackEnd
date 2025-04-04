@@ -522,7 +522,7 @@ router.post("/add", async (req, res) => {
 
 
 // ✅ UPDATE MARKS
-router.put("/update/:id", authMiddleware, async (req, res) => {
+router.put("/update/:id", async (req, res) => {
   const markId = req.params.id;
   const { subjectId, marksObtained, examType } = req.body;
 
@@ -568,7 +568,7 @@ router.put("/update/:id", authMiddleware, async (req, res) => {
 
 
 // ✅ DELETE MARKS FOR A SUBJECT IN AN ENTRY
-router.delete("/delete/:id/:subjectId", authMiddleware, async (req, res) => {
+router.delete("/delete/:id/:subjectId", async (req, res) => {
   const { id, subjectId } = req.params;
 
   try {
