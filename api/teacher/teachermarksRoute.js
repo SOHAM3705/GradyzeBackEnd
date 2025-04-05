@@ -385,75 +385,7 @@ router.get("/teachermarks/:teacherId/batches", async (req, res) => {
   }
 });
 
-router.put("/update", async (req, res) => {
-  try {
-    const {
-      studentId,
-      academicYear,
-      examType,
-      subjectName,
-      marksObtained,
-      totalMarks,
-      status
-    } = req.body;
-
-    if (!studentId || !academicYear || !examType || !subjectName || !status) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (!["Unit Test", "Prelim", "Re-Unit", "Re-Prelim"].includes(examType)) {
-      return res.status(400).json({ message: "Invalid exam type" });
-    }
-
-    if (!["Present", "Absent"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    if (status === "Present") {
-      if (marksObtained === undefined || totalMarks === undefined) {
-        return res.status(400).json({ message: "Marks and total required when status is Present" });
-      }
-
-      if (marksObtained < 0 || totalMarks < 1 || marksObtained > totalMarks) {
-        return res.status(400).json({ message: "Invalid marks values" });
-      }
-    }
-
-    const marksEntry = await Marks.findOne({ studentId, academicYear });
-    if (!marksEntry) {
-      return res.status(404).json({ message: "Marks record not found" });
-    }
-
-    const exam = marksEntry.exams.find(ex => ex.examType === examType);
-    if (!exam) {
-      return res.status(404).json({ message: "Exam not found" });
-    }
-
-    const subject = exam.subjects.find(sub => sub.subjectName === subjectName);
-    if (!subject) {
-      return res.status(404).json({ message: "Subject not found" });
-    }
-
-    subject.status = status;
-    if (status === "Absent") {
-      subject.marksObtained = undefined;
-      subject.totalMarks = undefined;
-    } else {
-      subject.marksObtained = marksObtained;
-      subject.totalMarks = totalMarks;
-    }
-
-    await marksEntry.save();
-    res.status(200).json({ message: "Marks updated successfully", marksEntry });
-
-  } catch (error) {
-    console.error("Error updating marks:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-
-// ✅ ADD MARKS
+// ✅ ADD MARKS (Updated for new schema structure)
 router.post("/add", async (req, res) => {
   const marksData = req.body;
 
@@ -463,15 +395,22 @@ router.post("/add", async (req, res) => {
 
   try {
     for (const entry of marksData) {
-      const { studentId, teacherId, year, examType, subjectId, marksObtained } = entry;
+      const {
+        studentId,
+        teacherId,
+        year,
+        examType,
+        subjectId,
+        marksObtained
+      } = entry;
 
       if (!studentId || !teacherId || !year || !examType || !subjectId || marksObtained === undefined) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
       const totalMarks = (examType === "unit-test" || examType === "re-unit-test") ? 30 : 70;
-      let status;
 
+      let status;
       if (marksObtained === -1) {
         status = "Absent";
       } else {
@@ -480,7 +419,6 @@ router.post("/add", async (req, res) => {
       }
 
       let existingRecord = await Marks.findOne({
-        teacherId,
         studentId,
         examType,
         year,
@@ -492,21 +430,33 @@ router.post("/add", async (req, res) => {
         );
 
         if (existingExam) {
+          existingExam.teacherId = teacherId; // ✅ ensure this is updated too
           existingExam.marksObtained = marksObtained;
           existingExam.totalMarks = totalMarks;
           existingExam.status = status;
         } else {
-          existingRecord.exams.push({ subjectId, marksObtained, totalMarks, status });
+          existingRecord.exams.push({
+            subjectId,
+            teacherId, // ✅ new location
+            marksObtained,
+            totalMarks,
+            status,
+          });
         }
 
         await existingRecord.save();
       } else {
         const newRecord = new Marks({
-          teacherId,
           studentId,
           examType,
           year,
-          exams: [{ subjectId, marksObtained, totalMarks, status }],
+          exams: [{
+            subjectId,
+            teacherId, // ✅ new location
+            marksObtained,
+            totalMarks,
+            status,
+          }],
         });
 
         await newRecord.save();
@@ -519,6 +469,7 @@ router.post("/add", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 // ✅ UPDATE MARKS
