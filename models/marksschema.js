@@ -6,7 +6,7 @@ const marksSchema = new mongoose.Schema({
   year: { type: String, required: true },
   exams: [
     {
-      subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
+      subjectName: { type: String, required: true },
       teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Faculty', required: true }, // moved here
       marksObtained: { type: Number, required: true },
       totalMarks: { type: Number, required: true },

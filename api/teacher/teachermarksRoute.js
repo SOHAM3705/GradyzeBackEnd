@@ -385,7 +385,7 @@ router.get("/teachermarks/:teacherId/batches", async (req, res) => {
   }
 });
 
-// ✅ ADD MARKS (Updated for new schema structure)
+// ✅ ADD MARKS (Updated for subjectName)
 router.post("/add", async (req, res) => {
   const marksData = req.body;
 
@@ -400,11 +400,11 @@ router.post("/add", async (req, res) => {
         teacherId,
         year,
         examType,
-        subjectId,
+        subjectName, // ✅ updated
         marksObtained
       } = entry;
 
-      if (!studentId || !teacherId || !year || !examType || !subjectId || marksObtained === undefined) {
+      if (!studentId || !teacherId || !year || !examType || !subjectName || marksObtained === undefined) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
@@ -426,18 +426,18 @@ router.post("/add", async (req, res) => {
 
       if (existingRecord) {
         const existingExam = existingRecord.exams.find(
-          (exam) => exam.subjectId.toString() === subjectId.toString()
+          (exam) => exam.subjectName.toLowerCase() === subjectName.toLowerCase()
         );
 
         if (existingExam) {
-          existingExam.teacherId = teacherId; // ✅ ensure this is updated too
+          existingExam.teacherId = teacherId;
           existingExam.marksObtained = marksObtained;
           existingExam.totalMarks = totalMarks;
           existingExam.status = status;
         } else {
           existingRecord.exams.push({
-            subjectId,
-            teacherId, // ✅ new location
+            subjectName,
+            teacherId,
             marksObtained,
             totalMarks,
             status,
@@ -451,8 +451,8 @@ router.post("/add", async (req, res) => {
           examType,
           year,
           exams: [{
-            subjectId,
-            teacherId, // ✅ new location
+            subjectName,
+            teacherId,
             marksObtained,
             totalMarks,
             status,
@@ -469,6 +469,7 @@ router.post("/add", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 

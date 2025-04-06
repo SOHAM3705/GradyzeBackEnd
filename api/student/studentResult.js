@@ -1,7 +1,6 @@
-// routes/studentMarks.js
 const express = require('express');
 const router = express.Router();
-const TeacherMarks = require('../../models/marksschema'); // adjust path as needed
+const TeacherMarks = require('../../models/marksschema');
 
 // GET: Fetch marks by studentId
 router.get('/marks/:studentId', async (req, res) => {
@@ -9,9 +8,8 @@ router.get('/marks/:studentId', async (req, res) => {
 
   try {
     const marksData = await TeacherMarks.find({ studentId })
-      .populate('studentId', 'name email') // optionally populate student info
-      .populate('exams.subjectId', 'name code') // populate subject details
-      .populate('exams.teacherId', 'name email department'); // populate teacher info
+      .populate('studentId', 'name email')
+      .populate('teacherId', 'name email department'); // No 'exams.'
 
     if (!marksData || marksData.length === 0) {
       return res.status(404).json({ message: 'No marks found for this student' });
