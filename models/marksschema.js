@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const marksSchema = new mongoose.Schema({
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Students', required: true },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'students', required: true },
   examType: { type: String, required: true },
   year: { type: String, required: true },
   exams: [
