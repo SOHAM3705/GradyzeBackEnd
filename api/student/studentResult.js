@@ -9,7 +9,7 @@ router.get('/marks/:studentId', async (req, res) => {
   try {
     const marksData = await TeacherMarks.find({ studentId })
       .populate('studentId', 'name email')
-      .populate('teacherId', 'name email department'); // No 'exams.'
+      .populate('exams.teacherId', 'name email department'); // No 'exams.'
 
     if (!marksData || marksData.length === 0) {
       return res.status(404).json({ message: 'No marks found for this student' });
