@@ -4,7 +4,7 @@ const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
 const mongoose = require('mongoose');
-const { verifyToken } = require("../../middleware/settingauth");
+
 // Get assigned divisions for a class teacher
 router.get("/:teacherId/divisions", async (req, res) => {
   try {
@@ -385,7 +385,7 @@ router.get("/teachermarks/:teacherId/batches", async (req, res) => {
 });
 
 // ✅ ADD MARKS (Updated for subjectName)
-router.post("/add",verifyToken, async (req, res) => {
+router.post("/add", async (req, res) => {
   const marksData = req.body;
 
   if (!Array.isArray(marksData) || marksData.length === 0) {
