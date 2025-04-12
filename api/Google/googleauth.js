@@ -24,8 +24,8 @@ const generateToken = (user, role) => {
 
 // 🔹 POST /api/auth/google?role=admin | teacher | student
 router.post("/google", async (req, res) => {
-  const { token } = req.body;
-  const role = req.query.role;
+  const { token, role } = req.body;
+  
 
   if (!["admin", "teacher", "student"].includes(role)) {
     return res.status(400).json({ message: "Invalid or missing role" });
