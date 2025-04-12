@@ -4,7 +4,7 @@ const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
 const mongoose = require('mongoose');
-
+const { verifyToken } = require("../middleware/settingauth");
 // Get assigned divisions for a class teacher
 router.get("/:teacherId/divisions", async (req, res) => {
   try {
@@ -254,69 +254,68 @@ router.get('/:teacherId/student/:studentId', async (req, res) => {
 });
 
 // API endpoint to fetch marks for a specific teacher's subject
-router.get('/:teacherId/subject/:subjectName/students',
-  async (req, res) => {
-      try {
-          const { teacherId, subjectName } = req.params;
+router.get("/:teacherId/subject/:subjectName/students", async (req, res) => {
+  try {
+    const { teacherId, subjectName } = req.params;
 
-          const teacher = await Teacher.findById(teacherId);
-          if (!teacher) {
-              return res.status(404).json({ message: 'Teacher not found' });
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    // Get students assigned to the teacher (update if you're using sections/classes)
+    const students = await Student.find({
+      teacherId: new mongoose.Types.ObjectId(teacherId)
+    }).select("_id name rollNo email");
+
+    // Fetch all marks documents for these students
+    const studentIds = students.map((s) => s._id);
+    const marksData = await Marks.find({
+      studentId: { $in: studentIds },
+      "exams.subjectName": subjectName // filters only those that contain the subject in any exam
+    });
+
+    const examData = {};
+
+    students.forEach((student) => {
+      const studentMarks = marksData.find(
+        (mark) => mark.studentId.toString() === student._id.toString()
+      );
+
+      if (studentMarks) {
+        studentMarks.exams.forEach((exam) => {
+          if (exam.subjectName === subjectName && exam.teacherId.toString() === teacherId) {
+            if (!examData[student._id]) {
+              examData[student._id] = {};
+            }
+
+            examData[student._id][exam.examType] = {
+              marksObtained: exam.status === "Absent" ? "Absent" : exam.marksObtained, // full breakdown if present
+              totalMarks: exam.status === "Absent" ? "Absent" : exam.totalMarks,
+              status: exam.status
+            };
           }
-
-          const students = await Student.find({
-              teacherId: new mongoose.Types.ObjectId(teacherId)
-          }).select('_id name rollNo email');
-
-          const marksData = await Marks.find({
-              teacherId: new mongoose.Types.ObjectId(teacherId),
-              'exams.subjects.subjectName': subjectName
-          });
-
-          const examData = {};
-          students.forEach(student => {
-              const studentMarks = marksData.find(
-                  mark => mark.studentId.toString() === student._id.toString()
-              );
-
-              if (studentMarks) {
-                  studentMarks.exams.forEach(exam => {
-                      const subjectMarks = exam.subjects.find(
-                          subject => subject.subjectName === subjectName
-                      );
-
-                      if (subjectMarks) {
-                          if (!examData[student._id]) {
-                              examData[student._id] = {};
-                          }
-                          examData[student._id][exam.examType] = {
-                              marksObtained: subjectMarks.status === "Absent" ? "Absent" : subjectMarks.marksObtained,
-                              totalMarks: subjectMarks.status === "Absent" ? "Absent" : subjectMarks.totalMarks
-                          };
-                      }
-                  });
-              }
-          });
-
-          res.json({
-              students: students.map(student => ({
-                  id: student._id,
-                  name: student.name,
-                  rollNo: student.rollNo,
-                  email: student.email
-              })),
-              examData: examData
-          });
-
-      } catch (error) {
-          console.error('Error fetching subject students marks:', error);
-          res.status(500).json({
-              message: 'Error fetching subject students marks',
-              error: error.message
-          });
+        });
       }
+    });
+
+    res.json({
+      students: students.map((student) => ({
+        id: student._id,
+        name: student.name,
+        rollNo: student.rollNo,
+        email: student.email
+      })),
+      examData
+    });
+  } catch (error) {
+    console.error("Error fetching subject students marks:", error);
+    res.status(500).json({
+      message: "Error fetching subject students marks",
+      error: error.message
+    });
   }
-);
+});
 
 // Get student marks for a specific exam type
 router.get("/:teacherId/marks", async (req, res) => {
@@ -400,29 +399,52 @@ router.post("/add", async (req, res) => {
         teacherId,
         year,
         examType,
-        subjectName, // ✅ updated
+        subjectName,
         marksObtained
       } = entry;
 
-      if (!studentId || !teacherId || !year || !examType || !subjectName || marksObtained === undefined) {
-        return res.status(400).json({ message: "All fields are required" });
+      if (!studentId || !teacherId || !year || !examType || !subjectName || typeof marksObtained !== "object") {
+        return res.status(400).json({ message: "Missing or invalid fields" });
       }
+
+      // Extract optional components safely
+      const q1q2 = marksObtained.q1q2 ?? 0;
+      const q3q4 = marksObtained.q3q4 ?? 0;
+      const q5q6 = marksObtained.q5q6 ?? 0;
+      const q7q8 = marksObtained.q7q8 ?? 0;
+
+      // If q1q2 is -1 (Absent), total is ignored
+      const total = q1q2 === -1 ? 0 : q1q2 + q3q4 + q5q6 + q7q8;
 
       const totalMarks = (examType === "unit-test" || examType === "re-unit-test") ? 30 : 70;
+      const passingMarks = (examType === "unit-test" || examType === "re-unit-test") ? 12 : 28;
 
-      let status;
-      if (marksObtained === -1) {
-        status = "Absent";
-      } else {
-        const passingMarks = (examType === "unit-test" || examType === "re-unit-test") ? 12 : 28;
-        status = marksObtained >= passingMarks ? "Pass" : "Fail";
-      }
+      const status = q1q2 === -1
+        ? "Absent"
+        : total >= passingMarks
+        ? "Pass"
+        : "Fail";
 
+      // Check if student already has a record for that exam
       let existingRecord = await Marks.findOne({
         studentId,
         examType,
-        year,
+        year
       });
+
+      const marksEntry = {
+        subjectName,
+        teacherId,
+        marksObtained: {
+          q1q2,
+          q3q4,
+          q5q6,
+          q7q8,
+          total
+        },
+        totalMarks,
+        status
+      };
 
       if (existingRecord) {
         const existingExam = existingRecord.exams.find(
@@ -430,33 +452,24 @@ router.post("/add", async (req, res) => {
         );
 
         if (existingExam) {
+          // Update existing subject exam entry
           existingExam.teacherId = teacherId;
-          existingExam.marksObtained = marksObtained;
+          existingExam.marksObtained = marksEntry.marksObtained;
           existingExam.totalMarks = totalMarks;
           existingExam.status = status;
         } else {
-          existingRecord.exams.push({
-            subjectName,
-            teacherId,
-            marksObtained,
-            totalMarks,
-            status,
-          });
+          // Add new subject to exams array
+          existingRecord.exams.push(marksEntry);
         }
 
         await existingRecord.save();
       } else {
+        // Create new record if none exists
         const newRecord = new Marks({
           studentId,
           examType,
           year,
-          exams: [{
-            subjectName,
-            teacherId,
-            marksObtained,
-            totalMarks,
-            status,
-          }],
+          exams: [marksEntry]
         });
 
         await newRecord.save();
@@ -469,6 +482,7 @@ router.post("/add", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 
@@ -641,5 +655,7 @@ router.get("/subjects-list/:teacherId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
+
 
 module.exports = router;

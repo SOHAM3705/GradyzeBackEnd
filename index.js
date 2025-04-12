@@ -28,7 +28,7 @@ const googleauthRoutes = require("./api/Google/googleauth");
 const web = express();
 const session = require("express-session");
 const passport = require("./config/passport");
-const prerequisitetest = require("./api/teacher/Prerequisitetest"); // Assuming you create the prerequisitetest route
+const quizRoutes = require('./api/teacher/quizRoutes');
 
 // Importing required modules
 require('dotenv').config();  
@@ -159,7 +159,7 @@ web.use("/api/studentsetting", studentSettingRoute);
 web.use("/api/studentnotification",studentnotificationRoute);
 web.use("/api/studentResult",studentResult);
 web.use("/api/auth", googleauthRoutes);
-web.use("/api/teachertest", prerequisitetest); // Assuming you create the prerequisitetest route
+app.use('/api/quizzes', quizRoutes);
 
 
 // Serve static files from React's build folder
