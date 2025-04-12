@@ -4,7 +4,7 @@ const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
 const mongoose = require('mongoose');
-const { verifyToken } = require("../middleware/settingauth");
+const { verifyToken } = require("../../middleware/settingauth");
 // Get assigned divisions for a class teacher
 router.get("/:teacherId/divisions", async (req, res) => {
   try {
@@ -385,7 +385,7 @@ router.get("/teachermarks/:teacherId/batches", async (req, res) => {
 });
 
 // ✅ ADD MARKS (Updated for subjectName)
-router.post("/add", async (req, res) => {
+router.post("/add",verifyToken, async (req, res) => {
   const marksData = req.body;
 
   if (!Array.isArray(marksData) || marksData.length === 0) {
@@ -656,6 +656,78 @@ router.get("/subjects-list/:teacherId", async (req, res) => {
   }
 });
 
+router.get("/get-marks/:subjectId", async (req, res) => {
+  try {
+    const { subjectId } = req.params;
 
+    // ✅ Get subject details to extract subjectName and teacherId
+    const subject = await Subject.findById(subjectId);
+    if (!subject) {
+      return res.status(404).json({ message: "Subject not found" });
+    }
+
+    const { name: subjectName, teacherId } = subject;
+
+    // ✅ Confirm teacher exists
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    // ✅ Get all students assigned to this teacher
+    const students = await Student.find({ teacherId: new mongoose.Types.ObjectId(teacherId) })
+      .select("_id name rollNo email");
+
+    const studentIds = students.map((s) => s._id);
+
+    // ✅ Fetch all relevant marks for these students
+    const marksData = await Marks.find({
+      studentId: { $in: studentIds },
+      "exams.subjectName": subjectName
+    });
+
+    // ✅ Prepare response
+    const examData = {};
+
+    students.forEach((student) => {
+      const studentMarks = marksData.find(
+        (mark) => mark.studentId.toString() === student._id.toString()
+      );
+
+      if (studentMarks) {
+        studentMarks.exams.forEach((exam) => {
+          if (exam.subjectName === subjectName && exam.teacherId.toString() === teacherId.toString()) {
+            if (!examData[student._id]) {
+              examData[student._id] = {};
+            }
+
+            examData[student._id][studentMarks.examType] = {
+              marksObtained: exam.status === "Absent" ? "Absent" : exam.marksObtained,
+              totalMarks: exam.status === "Absent" ? "Absent" : exam.totalMarks,
+              status: exam.status
+            };
+          }
+        });
+      }
+    });
+
+    res.json({
+      students: students.map((student) => ({
+        id: student._id,
+        name: student.name,
+        rollNo: student.rollNo,
+        email: student.email
+      })),
+      examData
+    });
+
+  } catch (error) {
+    console.error("Error fetching subject students marks:", error);
+    res.status(500).json({
+      message: "Error fetching subject students marks",
+      error: error.message
+    });
+  }
+});
 
 module.exports = router;
