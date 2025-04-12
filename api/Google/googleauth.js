@@ -53,6 +53,8 @@ router.post("/google", async (req, res) => {
       case "student":
         user = await Student.findOne({ email });
         break;
+      default:
+        return res.status(400).json({ message: "Invalid role" });
     }
 
     if (!user) {
@@ -69,32 +71,30 @@ router.post("/google", async (req, res) => {
       role,
     };
 
-    if (role === "admin") {
-      return res.json({
-        ...baseResponse,
-        name: user.name,
-        adminId: user._id,
-      });
+    switch (role) {
+      case "admin":
+        return res.json({
+          ...baseResponse,
+          name: user.name,
+          adminId: user._id,
+        });
+      case "teacher":
+        return res.json({
+          ...baseResponse,
+          name: user.name,
+          teacherId: user._id,
+          adminId: user.adminId,
+        });
+      case "student":
+        return res.json({
+          ...baseResponse,
+          name: user.name,
+          studentId: user._id,
+          adminId: user.adminId,
+        });
+      default:
+        return res.status(400).json({ message: "Invalid role" });
     }
-
-    if (role === "teacher") {
-      return res.json({
-        ...baseResponse,
-        name: user.name,
-        teacherId: user._id,
-        adminId: user.adminId,
-      });
-    }
-
-    if (role === "student") {
-      return res.json({
-        ...baseResponse,
-        name: user.name,
-        studentId: user._id,
-        adminId: user.adminId,
-      });
-    }
-
   } catch (err) {
     console.error("❌ Google token verification failed:", err);
     return res.status(401).json({ message: "Invalid Google token" });
