@@ -19,33 +19,23 @@ router.post("/google", async (req, res) => {
     const payload = ticket.getPayload();
     const email = payload.email;
 
-    // Check if this user exists in Admin collection
     const existingAdmin = await Admin.findOne({ email });
     if (!existingAdmin) {
       return res.status(401).json({ message: "Admin not found" });
     }
 
-    // Create JWT token
     const token = jwt.sign(
-      {
-        id: existingAdmin._id,
-        email: existingAdmin.email,
-        role: "admin",
-      },
+      { id: existingAdmin._id, email: existingAdmin.email, role: "admin" },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    res.json({
-      token,
-      name: existingAdmin.name,
-      adminId: existingAdmin._id,
-      role: "admin",
-    });
+    res.json({ token, name: existingAdmin.name, adminId: existingAdmin._id, role: "admin" });
   } catch (error) {
     console.error("❌ Google token verification failed:", error);
     res.status(401).json({ message: "Invalid token" });
   }
 });
+
 
 module.exports = router;
