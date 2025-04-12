@@ -137,7 +137,6 @@ web.get("/", (req, res) => {
 web.use('/api/admin', adminRoutes);
 web.use('/api/admin', loginRoute);
 web.use("/api/password",passwordResetRoutes);
-web.use("/api/auth", authRoutes);
 web.use("/api/Gsheet", contactus);
 web.use("/api/Gsheet", feedback);
 
