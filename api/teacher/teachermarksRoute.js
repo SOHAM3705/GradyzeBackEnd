@@ -560,8 +560,6 @@ router.delete("/delete/:id/:subjectId", async (req, res) => {
   }
 });
 
-module.exports = router;
-
 
 
 // Get class teacher dashboard details
@@ -701,8 +699,17 @@ router.get("/get-marks/:subjectId", async (req, res) => {
               examData[student._id] = {};
             }
 
-            examData[student._id][studentMarks.examType] = {
-              marksObtained: exam.status === "Absent" ? "Absent" : exam.marksObtained,
+            // Store the marks with the breakdown if not absent
+            examData[student._id][exam.examType] = {
+              marksObtained: exam.status === "Absent" 
+                ? "Absent" 
+                : {
+                    q1q2: exam.marksObtained.q1q2, // Breakdown of q1q2 marks
+                    q3q4: exam.marksObtained.q3q4, // Breakdown of q3q4 marks
+                    q5q6: exam.marksObtained.q5q6, // Breakdown of q5q6 marks
+                    q7q8: exam.marksObtained.q7q8, // Breakdown of q7q8 marks
+                    total: exam.marksObtained.total // Total marks
+                },
               totalMarks: exam.status === "Absent" ? "Absent" : exam.totalMarks,
               status: exam.status
             };
@@ -729,5 +736,6 @@ router.get("/get-marks/:subjectId", async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
