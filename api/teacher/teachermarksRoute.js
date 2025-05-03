@@ -7,66 +7,56 @@ const mongoose = require('mongoose');
 
 router.post("/add-marks", async (req, res) => {
   try {
-    const { studentId, teacherId, examType, year, subjectName, isAbsent, marks } = req.body;
+    const marksArray = req.body;
 
-    // Validation
-    if (!studentId || !teacherId || !examType || !year || !subjectName) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!Array.isArray(marksArray) || marksArray.length === 0) {
+      return res.status(400).json({ message: "No marks data provided" });
     }
 
-    // Calculate marks based on absent status
-    let marksEntry;
-    if (isAbsent) {
-      marksEntry = {
-        subjectName,
-        teacherId,
-        marksObtained: { q1q2: -1, q3q4: 0, q5q6: 0, q7q8: 0, total: -1 },
-        totalMarks: 0,
-        status: "Absent"
-      };
-    } else {
-      const { q1q2, q3q4, q5q6, q7q8 } = marks;
-      const total = q1q2 + q3q4 + q5q6 + q7q8;
-      const totalMarks = examType.includes('unit') ? 30 : 70;
-      const passingMarks = examType.includes('unit') ? 12 : 28;
+    for (const entry of marksArray) {
+      const { studentId, examType, year, exams } = entry;
 
-      marksEntry = {
-        subjectName,
-        teacherId,
-        marksObtained: { q1q2, q3q4, q5q6, q7q8, total },
-        totalMarks,
-        status: total >= passingMarks ? "Pass" : "Fail"
-      };
-    }
-
-    // Find or create marks record
-    let record = await Marks.findOne({ 
-      studentId, 
-      examType, 
-      year 
-    });
-
-    if (record) {
-      // Update existing exam or add new subject
-      const examIndex = record.exams.findIndex(
-        e => e.subjectName === subjectName && e.teacherId.equals(teacherId)
-      );
-      
-      if (examIndex >= 0) {
-        record.exams[examIndex] = marksEntry;
-      } else {
-        record.exams.push(marksEntry);
+      if (!studentId || !examType || !year || !exams || !Array.isArray(exams)) {
+        continue; // Skip invalid entries
       }
-    } else {
-      record = new Marks({
-        studentId,
-        examType,
-        year,
-        exams: [marksEntry]
-      });
+
+      // Find if a record already exists for this student, examType and year
+      let record = await Marks.findOne({ studentId, examType, year });
+
+      for (const exam of exams) {
+        const { subjectName, teacherId } = exam;
+
+        if (!subjectName || !teacherId) continue;
+
+        // If record exists, update or add exam
+        if (record) {
+          const examIndex = record.exams.findIndex(
+            e => e.subjectName === subjectName && e.teacherId.equals(teacherId)
+          );
+
+          if (examIndex >= 0) {
+            // Update existing exam
+            record.exams[examIndex] = exam;
+          } else {
+            // Add new exam
+            record.exams.push(exam);
+          }
+        } else {
+          // Create new record
+          record = new Marks({
+            studentId,
+            examType,
+            year,
+            exams: [exam]
+          });
+        }
+      }
+
+      if (record) {
+        await record.save();
+      }
     }
 
-    await record.save();
     res.status(201).json({ message: "Marks saved successfully" });
 
   } catch (error) {
@@ -74,7 +64,6 @@ router.post("/add-marks", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-
 // ✅ UPDATE MARKS WITH ABSENT SUPPORT (UPDATED)
 router.put("/update-marks/:recordId", async (req, res) => {
   try {
