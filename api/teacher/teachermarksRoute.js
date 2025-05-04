@@ -665,6 +665,7 @@ router.get("/subjects-list/:teacherId", async (req, res) => {
 router.get("/get-marks/:subjectId", async (req, res) => {
   try {
     const { subjectId } = req.params;
+    const { examType } = req.query; // ✅ Read examType from query
 
     // ✅ Get subject details to extract subjectName and teacherId
     const subject = await Subject.findById(subjectId);
@@ -686,9 +687,10 @@ router.get("/get-marks/:subjectId", async (req, res) => {
 
     const studentIds = students.map((s) => s._id);
 
-    // ✅ Fetch all relevant marks for these students
+    // ✅ Fetch all relevant marks for these students, matching top-level examType
     const marksData = await Marks.find({
       studentId: { $in: studentIds },
+      examType: examType, // ✅ Filter based on top-level examType
       "exams.subjectName": subjectName
     });
 
@@ -702,22 +704,24 @@ router.get("/get-marks/:subjectId", async (req, res) => {
 
       if (studentMarks) {
         studentMarks.exams.forEach((exam) => {
-          if (exam.subjectName === subjectName && exam.teacherId.toString() === teacherId.toString()) {
+          if (
+            exam.subjectName === subjectName &&
+            exam.teacherId.toString() === teacherId.toString()
+          ) {
             if (!examData[student._id]) {
               examData[student._id] = {};
             }
 
-            // Store the marks with the breakdown if not absent
-            examData[student._id][exam.examType] = {
-              marksObtained: exam.status === "Absent" 
-                ? "Absent" 
+            examData[student._id][studentMarks.examType] = {
+              marksObtained: exam.status === "Absent"
+                ? "Absent"
                 : {
-                    q1q2: exam.marksObtained.q1q2, // Breakdown of q1q2 marks
-                    q3q4: exam.marksObtained.q3q4, // Breakdown of q3q4 marks
-                    q5q6: exam.marksObtained.q5q6, // Breakdown of q5q6 marks
-                    q7q8: exam.marksObtained.q7q8, // Breakdown of q7q8 marks
-                    total: exam.marksObtained.total // Total marks
-                },
+                    q1q2: exam.marksObtained.q1q2,
+                    q3q4: exam.marksObtained.q3q4,
+                    q5q6: exam.marksObtained.q5q6,
+                    q7q8: exam.marksObtained.q7q8,
+                    total: exam.marksObtained.total
+                  },
               totalMarks: exam.status === "Absent" ? "Absent" : exam.totalMarks,
               status: exam.status
             };
@@ -744,6 +748,7 @@ router.get("/get-marks/:subjectId", async (req, res) => {
     });
   }
 });
+
 
 
 module.exports = router;
