@@ -159,7 +159,6 @@ router.put("/update-marks/:recordId", async (req, res) => {
   }
 });
 
-// ✅ DELETE MARKS FOR SUBJECT (UPDATED)
 router.delete("/delete-marks", async (req, res) => {
   try {
     const { subjectName, teacherId, examType } = req.body;
@@ -202,10 +201,13 @@ router.delete("/delete-marks", async (req, res) => {
   }
 });
 
-router.get("/student-marks/:studentId", async (req, res) => {
+router.get("/student-marks", async (req, res) => {
   try {
-    const { studentId } = req.params;
-    const { examType, year, subjectName } = req.query;
+    const { studentId, examType, year, subjectName } = req.query;
+
+    if (!studentId) {
+      return res.status(400).json({ message: "studentId is required" });
+    }
 
     const query = { studentId };
     if (examType) query.examType = examType;
@@ -216,8 +218,7 @@ router.get("/student-marks/:studentId", async (req, res) => {
     if (!records || records.length === 0) {
       return res.status(404).json({ message: "No marks found" });
     }
-
-    // Filter by subjectName if provided
+    
     const filteredExams = records.map(record => ({
       examType: record.examType,
       year: record.year,
