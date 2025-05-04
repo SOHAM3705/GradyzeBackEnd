@@ -5,6 +5,55 @@ const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
 const mongoose = require('mongoose');
 
+// Get marks by subject name and exam type
+router.get("/marks-by-subject", async (req, res) => {
+  try {
+    const { subjectName, examType } = req.query;
+
+    if (!subjectName || !examType) {
+      return res.status(400).json({ 
+        message: "Subject name and exam type are required" 
+      });
+    }
+
+    // Find all marks records for this exam type
+    const marksData = await Marks.find({ 
+      examType,
+      "exams.subjectName": subjectName 
+    });
+
+    // Transform the data to group by student
+    const result = {};
+    
+    marksData.forEach(record => {
+      record.exams.forEach(exam => {
+        if (exam.subjectName === subjectName) {
+          if (!result[record.studentId]) {
+            result[record.studentId] = {};
+          }
+          
+          result[record.studentId][record.examType] = {
+            marksObtained: exam.status === "Absent" 
+              ? "Absent" 
+              : exam.marksObtained,
+            totalMarks: exam.totalMarks,
+            status: exam.status
+          };
+        }
+      });
+    });
+
+    res.status(200).json(result);
+
+  } catch (error) {
+    console.error("Error fetching marks by subject:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+});
+
 router.post("/add-marks", async (req, res) => {
   try {
     const marksArray = req.body;
@@ -111,26 +160,38 @@ router.put("/update-marks/:recordId", async (req, res) => {
 });
 
 // ✅ DELETE MARKS FOR SUBJECT (UPDATED)
-router.delete("/delete-marks/:recordId", async (req, res) => {
+router.delete("/delete-marks", async (req, res) => {
   try {
-    const { recordId } = req.params;
-    const { subjectName, teacherId } = req.body;
+    const { subjectName, teacherId, examType } = req.body;
 
-    const record = await Marks.findById(recordId);
-    if (!record) {
-      return res.status(404).json({ message: "Record not found" });
+    if (!subjectName || !teacherId || !examType) {
+      return res.status(400).json({ 
+        message: "Subject name, teacher ID and exam type are required" 
+      });
     }
 
-    // Remove the specific exam
-    record.exams = record.exams.filter(
-      exam => !(exam.subjectName === subjectName && exam.teacherId.equals(teacherId))
-    );
+    // Find all records that match the criteria
+    const records = await Marks.find({
+      examType,
+      "exams.subjectName": subjectName,
+      "exams.teacherId": teacherId
+    });
 
-    // If no exams left, delete the whole record
-    if (record.exams.length === 0) {
-      await Marks.findByIdAndDelete(recordId);
-    } else {
-      await record.save();
+    if (!records || records.length === 0) {
+      return res.status(404).json({ message: "No matching marks found" });
+    }
+
+    // Update each record to remove the specified exam
+    for (const record of records) {
+      record.exams = record.exams.filter(
+        exam => !(exam.subjectName === subjectName && exam.teacherId.equals(teacherId))
+      );
+
+      if (record.exams.length === 0) {
+        await Marks.findByIdAndDelete(record._id);
+      } else {
+        await record.save();
+      }
     }
 
     res.status(200).json({ message: "Marks deleted successfully" });
@@ -141,11 +202,10 @@ router.delete("/delete-marks/:recordId", async (req, res) => {
   }
 });
 
-// ✅ FETCH MARKS FOR STUDENT (UPDATED)
 router.get("/student-marks/:studentId", async (req, res) => {
   try {
     const { studentId } = req.params;
-    const { examType, year } = req.query;
+    const { examType, year, subjectName } = req.query;
 
     const query = { studentId };
     if (examType) query.examType = examType;
@@ -157,8 +217,21 @@ router.get("/student-marks/:studentId", async (req, res) => {
       return res.status(404).json({ message: "No marks found" });
     }
 
-    // Transform data for better client consumption
-    const result = records.map(record => ({
+    // Filter by subjectName if provided
+    const filteredExams = records.map(record => ({
+      examType: record.examType,
+      year: record.year,
+      exams: record.exams.filter(exam => 
+        !subjectName || exam.subjectName === subjectName
+      )
+    })).filter(record => record.exams.length > 0);
+
+    if (filteredExams.length === 0) {
+      return res.status(404).json({ message: "No matching marks found" });
+    }
+
+    // Transform data
+    const result = filteredExams.map(record => ({
       examType: record.examType,
       year: record.year,
       exams: record.exams.map(exam => ({
@@ -167,12 +240,7 @@ router.get("/student-marks/:studentId", async (req, res) => {
         marks: exam.status === "Absent" 
           ? "Absent" 
           : {
-              breakdown: {
-                q1q2: exam.marksObtained.q1q2,
-                q3q4: exam.marksObtained.q3q4,
-                q5q6: exam.marksObtained.q5q6,
-                q7q8: exam.marksObtained.q7q8
-              },
+              breakdown: exam.marksObtained,
               total: exam.marksObtained.total,
               outOf: exam.totalMarks,
               percentage: Math.round((exam.marksObtained.total / exam.totalMarks) * 100)
@@ -662,89 +730,49 @@ router.get("/subjects-list/:teacherId", async (req, res) => {
   }
 });
 
-router.get("/get-marks/:subjectId", async (req, res) => {
+router.get("/get-marks/:subjectName", async (req, res) => {
   try {
-    const { subjectId } = req.params;
-    const { examType } = req.query; // ✅ Read examType from query
+    const { subjectName } = req.params;
+    const { examType } = req.query;
 
-    // ✅ Get subject details to extract subjectName and teacherId
-    const subject = await Subject.findById(subjectId);
-    if (!subject) {
-      return res.status(404).json({ message: "Subject not found" });
+    if (!examType) {
+      return res.status(400).json({ message: "Exam type is required" });
     }
 
-    const { name: subjectName, teacherId } = subject;
-
-    // ✅ Confirm teacher exists
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      return res.status(404).json({ message: "Teacher not found" });
-    }
-
-    // ✅ Get all students assigned to this teacher
-    const students = await Student.find({ teacherId: new mongoose.Types.ObjectId(teacherId) })
-      .select("_id name rollNo email");
-
-    const studentIds = students.map((s) => s._id);
-
-    // ✅ Fetch all relevant marks for these students, matching top-level examType
+    // Get all marks for this subject and exam type
     const marksData = await Marks.find({
-      studentId: { $in: studentIds },
-      examType: examType, // ✅ Filter based on top-level examType
+      examType,
       "exams.subjectName": subjectName
     });
 
-    // ✅ Prepare response
-    const examData = {};
-
-    students.forEach((student) => {
-      const studentMarks = marksData.find(
-        (mark) => mark.studentId.toString() === student._id.toString()
-      );
-
-      if (studentMarks) {
-        studentMarks.exams.forEach((exam) => {
-          if (
-            exam.subjectName === subjectName &&
-            exam.teacherId.toString() === teacherId.toString()
-          ) {
-            if (!examData[student._id]) {
-              examData[student._id] = {};
-            }
-
-            examData[student._id][studentMarks.examType] = {
-              marksObtained: exam.status === "Absent"
-                ? "Absent"
-                : {
-                    q1q2: exam.marksObtained.q1q2,
-                    q3q4: exam.marksObtained.q3q4,
-                    q5q6: exam.marksObtained.q5q6,
-                    q7q8: exam.marksObtained.q7q8,
-                    total: exam.marksObtained.total
-                  },
-              totalMarks: exam.status === "Absent" ? "Absent" : exam.totalMarks,
-              status: exam.status
-            };
+    // Transform the data
+    const result = {};
+    
+    marksData.forEach(record => {
+      record.exams.forEach(exam => {
+        if (exam.subjectName === subjectName) {
+          if (!result[record.studentId]) {
+            result[record.studentId] = {};
           }
-        });
-      }
+          
+          result[record.studentId] = {
+            marksObtained: exam.status === "Absent" 
+              ? "Absent" 
+              : exam.marksObtained,
+            totalMarks: exam.totalMarks,
+            status: exam.status
+          };
+        }
+      });
     });
 
-    res.json({
-      students: students.map((student) => ({
-        id: student._id,
-        name: student.name,
-        rollNo: student.rollNo,
-        email: student.email
-      })),
-      examData
-    });
+    res.status(200).json(result);
 
   } catch (error) {
-    console.error("Error fetching subject students marks:", error);
-    res.status(500).json({
-      message: "Error fetching subject students marks",
-      error: error.message
+    console.error("Error fetching subject marks:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message 
     });
   }
 });
