@@ -4,6 +4,7 @@ const Teacher = require("../../models/teacheraccount");
 const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
 const mongoose = require('mongoose');
+const { generatePdf, generateExcel, generateClassPdf, generateClassExcel } = require("../../utils/exportgenerator");
 
 // Get marks by subject name and exam type
 router.get("/marks-by-subject", async (req, res) => {
@@ -350,6 +351,125 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching students for subjects:", error);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// In your routes file, add these at the top:
+const { generatePdf, generateExcel, generateClassPdf, generateClassExcel } = require('./path/to/your/generators');
+
+// Then update your export routes like this:
+
+// Subject teacher export
+router.get('/export-marks', auth, async (req, res) => {
+  try {
+    const { subjectName, examType, exportType } = req.query;
+    
+    // Fetch marks data
+    const marks = await Marks.find({
+      'exams.subjectName': subjectName,
+      examType,
+      'exams.teacherId': req.teacher._id
+    }).populate('studentId');
+    
+    if (exportType === 'pdf') {
+      const pdfDoc = generatePdf(marks);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${subjectName}_${examType}_marks.pdf`);
+      pdfDoc.pipe(res);
+      pdfDoc.end();
+    } else {
+      const workbook = generateExcel(marks);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=${subjectName}_${examType}_marks.xlsx`);
+      await XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }).then((buffer) => {
+        res.end(buffer);
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Class teacher export
+router.get('/export-class-marks', auth, async (req, res) => {
+  try {
+    const { year, division, exportType } = req.query;
+    
+    // Fetch all students and subjects
+    const students = await Student.find({ year, division }).sort('rollNo');
+    const subjects = await Subject.find({ year, division });
+    
+    // Fetch marks for all students
+    const marksData = await Marks.find({
+      studentId: { $in: students.map(s => s._id) },
+      year
+    }).populate('studentId');
+    
+    if (exportType === 'pdf') {
+      const pdfDoc = generateClassPdf(students, subjects, marksData);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=Class_${year}_${division}_Marks.pdf`);
+      pdfDoc.pipe(res);
+      pdfDoc.end();
+    } else {
+      const workbook = generateClassExcel(students, subjects, marksData);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=Class_${year}_${division}_Marks.xlsx`);
+      await XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }).then((buffer) => {
+        res.end(buffer);
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// For class teacher view
+router.get('/:teacherId/class-students', auth, async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.teacherId);
+    if (!teacher) return res.status(404).json({ message: 'Teacher not found' });
+    
+    const students = await Student.find({ 
+      year: teacher.assignedYear, 
+      division: teacher.assignedDivision 
+    }).sort('rollNo');
+    
+    const subjects = await Subject.find({ 
+      year: teacher.assignedYear, 
+      division: teacher.assignedDivision 
+    });
+    
+    // Get marks for all students and subjects
+    const studentIds = students.map(s => s._id);
+    const marks = await Marks.find({ studentId: { $in: studentIds } });
+    
+    // Organize marks by student and subject
+    const studentsWithMarks = students.map(student => {
+      const studentMarks = marks.filter(m => m.studentId.equals(student._id));
+      const marksBySubject = {};
+      
+      studentMarks.forEach(mark => {
+        mark.exams.forEach(exam => {
+          if (!marksBySubject[exam.subjectName]) {
+            marksBySubject[exam.subjectName] = {};
+          }
+          marksBySubject[exam.subjectName][mark.examType] = exam;
+        });
+      });
+      
+      return {
+        ...student.toObject(),
+        marks: marksBySubject
+      };
+    });
+    
+    res.json({ 
+      students: studentsWithMarks, 
+      subjects 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
