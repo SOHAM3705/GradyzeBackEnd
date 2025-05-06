@@ -354,12 +354,6 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
   }
 });
 
-// In your routes file, add these at the top:
-const { generatePdf, generateExcel, generateClassPdf, generateClassExcel } = require('./path/to/your/generators');
-
-// Then update your export routes like this:
-
-// Subject teacher export
 router.get('/export-marks', auth, async (req, res) => {
   try {
     const { subjectName, examType, exportType } = req.query;
