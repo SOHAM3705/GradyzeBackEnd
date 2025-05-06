@@ -354,7 +354,7 @@ router.get("/students-by-subject/:teacherId", async (req, res) => {
   }
 });
 
-router.get('/export-marks', auth, async (req, res) => {
+router.get('/export-marks', async (req, res) => {
   try {
     const { subjectName, examType, exportType } = req.query;
     
@@ -385,7 +385,7 @@ router.get('/export-marks', auth, async (req, res) => {
 });
 
 // Class teacher export
-router.get('/export-class-marks', auth, async (req, res) => {
+router.get('/export-class-marks', async (req, res) => {
   try {
     const { year, division, exportType } = req.query;
     
@@ -419,7 +419,7 @@ router.get('/export-class-marks', auth, async (req, res) => {
 });
 
 // For class teacher view
-router.get('/:teacherId/class-students', auth, async (req, res) => {
+router.get('/:teacherId/class-students', async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.teacherId);
     if (!teacher) return res.status(404).json({ message: 'Teacher not found' });
