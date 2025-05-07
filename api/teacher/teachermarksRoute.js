@@ -418,51 +418,74 @@ router.get('/export-class-marks', async (req, res) => {
   }
 });
 
-// For class teacher view
-router.get('/:teacherId/class-students', async (req, res) => {
+router.get('/:teacherId/class-students', auth, async (req, res) => {
   try {
+    // First get the teacher's assigned year and division
     const teacher = await Teacher.findById(req.params.teacherId);
-    if (!teacher) return res.status(404).json({ message: 'Teacher not found' });
-    
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    // Validate we have year and division
+    if (!teacher.assignedYear || !teacher.assignedDivision) {
+      return res.status(400).json({ message: 'Teacher is not assigned to any class' });
+    }
+
+    // Get all students in the teacher's class
     const students = await Student.find({ 
       year: teacher.assignedYear, 
       division: teacher.assignedDivision 
     }).sort('rollNo');
-    
+
+    // Get all subjects for this class
     const subjects = await Subject.find({ 
       year: teacher.assignedYear, 
       division: teacher.assignedDivision 
     });
-    
-    // Get marks for all students and subjects
+
+    // Get marks for all these students
     const studentIds = students.map(s => s._id);
-    const marks = await Marks.find({ studentId: { $in: studentIds } });
-    
-    // Organize marks by student and subject
+    const marks = await Marks.find({ 
+      studentId: { $in: studentIds },
+      year: teacher.assignedYear
+    }).populate('studentId');
+
+    // Organize the data for response
     const studentsWithMarks = students.map(student => {
-      const studentMarks = marks.filter(m => m.studentId.equals(student._id));
-      const marksBySubject = {};
+      const studentMarks = marks.filter(m => m.studentId._id.equals(student._id));
       
+      // Create marks by subject structure
+      const marksBySubject = {};
       studentMarks.forEach(mark => {
         mark.exams.forEach(exam => {
           if (!marksBySubject[exam.subjectName]) {
             marksBySubject[exam.subjectName] = {};
           }
-          marksBySubject[exam.subjectName][mark.examType] = exam;
+          marksBySubject[exam.subjectName][mark.examType] = {
+            marksObtained: exam.marksObtained,
+            status: exam.status
+          };
         });
       });
-      
+
       return {
-        ...student.toObject(),
+        _id: student._id,
+        rollNo: student.rollNo,
+        name: student.name,
         marks: marksBySubject
       };
     });
-    
-    res.json({ 
-      students: studentsWithMarks, 
-      subjects 
+
+    res.json({
+      students: studentsWithMarks,
+      subjects: subjects.map(sub => ({
+        _id: sub._id,
+        name: sub.name
+      }))
     });
+
   } catch (error) {
+    console.error('Error fetching class students:', error);
     res.status(500).json({ message: error.message });
   }
 });
