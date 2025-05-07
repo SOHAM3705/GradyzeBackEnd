@@ -418,6 +418,48 @@ router.get('/export-class-marks', async (req, res) => {
   }
 });
 
+// GET /api/teachermarks/class-marks
+router.get('/class-marks', async (req, res) => {
+  try {
+    const { year, division, examType } = req.query;
+    const teacherId = req.teacher._id;
+
+    // 1. Verify the requester is the class teacher for this class
+    const classTeacher = await Teacher.findOne({
+      _id: teacherId,
+      isClassTeacher: true,
+      'assignedClass.year': year,
+      'assignedClass.division': division
+    });
+
+    if (!classTeacher) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // 2. Get all students in this class
+    const students = await Student.find({ 
+      year, 
+      division,
+      adminId: classTeacher.adminId 
+    });
+
+    // 3. Get marks for these students (filter by examType if provided)
+    const query = {
+      studentId: { $in: students.map(s => s._id) },
+      year
+    };
+
+    if (examType) query.examType = examType;
+
+    const marks = await Marks.find(query)
+      .populate('studentId', 'name rollNo');
+
+    res.json(marks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/:teacherId/class-students', async (req, res) => {
   try {
     // First get the teacher's assigned year and division
