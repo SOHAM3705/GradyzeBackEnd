@@ -418,7 +418,7 @@ router.get('/export-class-marks', async (req, res) => {
   }
 });
 
-router.get('/:teacherId/class-students', auth, async (req, res) => {
+router.get('/:teacherId/class-students', async (req, res) => {
   try {
     // First get the teacher's assigned year and division
     const teacher = await Teacher.findById(req.params.teacherId);
