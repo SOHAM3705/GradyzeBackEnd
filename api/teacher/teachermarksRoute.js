@@ -427,26 +427,36 @@ router.get('/class-marks', async (req, res) => {
     // 1. Verify the requester is the class teacher for this class
     const classTeacher = await Teacher.findOne({
       _id: teacherId,
-      isClassTeacher: true,
-      'assignedClass.year': year,
-      'assignedClass.division': division
+      isClassTeacher: true
     });
 
     if (!classTeacher) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied - Not a class teacher' });
     }
+
+    // Check assignment using the correct nested structure
+    if (!classTeacher.assignedClass || !classTeacher.assignedClass.year) {
+      return res.status(400).json({ 
+        message: 'Class teacher is not assigned to any class',
+        isClassTeacher: true // Confirm role
+      });
+    }
+
+    // Use the assigned class if no year/division provided in query
+    const queryYear = year || classTeacher.assignedClass.year;
+    const queryDivision = division || classTeacher.assignedClass.division;
 
     // 2. Get all students in this class
     const students = await Student.find({ 
-      year, 
-      division,
+      year: queryYear, 
+      division: queryDivision,
       adminId: classTeacher.adminId 
     });
 
     // 3. Get marks for these students (filter by examType if provided)
     const query = {
       studentId: { $in: students.map(s => s._id) },
-      year
+      year: queryYear
     };
 
     if (examType) query.examType = examType;
@@ -456,40 +466,47 @@ router.get('/class-marks', async (req, res) => {
 
     res.json(marks);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: error.message,
+      error: error.stack 
+    });
   }
 });
 
 router.get('/:teacherId/class-students', async (req, res) => {
   try {
-    // First get the teacher's assigned year and division
     const teacher = await Teacher.findById(req.params.teacherId);
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
     }
 
-    // Validate we have year and division
-    if (!teacher.assignedYear || !teacher.assignedDivision) {
-      return res.status(400).json({ message: 'Teacher is not assigned to any class' });
+    // Check using the correct nested structure
+    if (!teacher.assignedClass || !teacher.assignedClass.year) {
+      return res.status(400).json({ 
+        message: 'Teacher is not assigned to any class',
+        isClassTeacher: teacher.isClassTeacher,
+        hasAssignedClass: !!teacher.assignedClass,
+        debug: teacher.assignedClass // For debugging
+      });
     }
+
+    const { year, division } = teacher.assignedClass;
 
     // Get all students in the teacher's class
     const students = await Student.find({ 
-      year: teacher.assignedYear, 
-      division: teacher.assignedDivision 
+      year, 
+      division,
+      adminId: teacher.adminId 
     }).sort('rollNo');
 
-    // Get all subjects for this class
-    const subjects = await Subject.find({ 
-      year: teacher.assignedYear, 
-      division: teacher.assignedDivision 
-    });
+    // Get subjects from teacher's record (already populated)
+    const subjects = teacher.subjects || [];
 
     // Get marks for all these students
     const studentIds = students.map(s => s._id);
     const marks = await Marks.find({ 
       studentId: { $in: studentIds },
-      year: teacher.assignedYear
+      year
     }).populate('studentId');
 
     // Organize the data for response
@@ -519,16 +536,24 @@ router.get('/:teacherId/class-students', async (req, res) => {
     });
 
     res.json({
+      success: true,
+      year,
+      division,
       students: studentsWithMarks,
       subjects: subjects.map(sub => ({
         _id: sub._id,
-        name: sub.name
+        name: sub.name,
+        semester: sub.semester
       }))
     });
 
   } catch (error) {
-    console.error('Error fetching class students:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error in /class-students:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
