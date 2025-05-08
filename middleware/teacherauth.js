@@ -27,11 +27,12 @@ const auth = async (req, res, next) => {
     // 4. Attach to request
     req.token = token;
     req.teacher = teacher;
+    
+    next();
+  } catch (error) {
     console.log('Token:', token);
 console.log('Decoded:', decoded);
 console.log('Found teacher:', teacher);
-    next();
-  } catch (error) {
     console.error('Auth error:', error.message);
     res.status(401).json({ message: 'Not authorized to access this resource' });
   }
