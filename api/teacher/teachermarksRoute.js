@@ -420,10 +420,10 @@ router.get('/export-class-marks', async (req, res) => {
 });
 
 // GET /api/teachermarks/class-marks
-router.get('/class-marks', auth, async (req, res) => {
+router.get('/class-marks', async (req, res) => {
   try {
     const { year, division, examType } = req.query;
-    const teacherId = req.teacher._id;
+    const teacherId = req.params;
 
     // 1. Verify the requester is the class teacher for this class
     const classTeacher = await Teacher.findOne({
