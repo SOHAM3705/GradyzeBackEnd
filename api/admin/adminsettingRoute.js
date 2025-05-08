@@ -37,7 +37,7 @@ router.get("/profile", verifyToken, async (req, res) => {
         console.log("✅ Fetched Profile for:", req.adminEmail);
 
         const profilePhotoUrl = profile.profilePhotoId
-            ? `/api/admin/profile/photo/${profile.profilePhotoId}`
+            ? `/api/adminsetting/profile/photo/${profile.profilePhotoId}`
             : "/profile.png"; // Default profile picture
 
         res.json({ ...profile, profilePhotoUrl });
