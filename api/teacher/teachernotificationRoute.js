@@ -87,7 +87,7 @@ router.post("/teacher", async (req, res) => {
     
     
     // Save to database
-    await newNotification.save();
+    const savedNotification = await newNotification.save();
     res.json(savedNotification);
 
     res.status(201).json({
