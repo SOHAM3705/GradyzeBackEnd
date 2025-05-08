@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const marksSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-  examType: { type: String, required: true, enum: ['unit-test', 're-unit-test', 'term', 'final'] },
+  examType: { type: String, required: true, enum: ['unit-test', 're-unit-test', 'prelim', 're-prelim'] },
   year: { type: String, required: true },
   exams: [
     {
