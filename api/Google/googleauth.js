@@ -91,6 +91,7 @@ router.post("/google", async (req, res) => {
           name: user.name,
           studentId: user._id,
           adminId: user.adminId,
+          teacherId: user.teacherId,
         });
       default:
         return res.status(400).json({ message: "Invalid role" });
