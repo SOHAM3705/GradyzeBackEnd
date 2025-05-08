@@ -423,7 +423,7 @@ router.get('/export-class-marks', async (req, res) => {
 router.get('/class-marks', async (req, res) => {
   try {
     const { year, division, examType } = req.query;
-    const teacherId = req.params;
+    const teacherId = req.query.teacherId || req.teacher?._id;
 
     // 1. Verify the requester is the class teacher for this class
     const classTeacher = await Teacher.findOne({
