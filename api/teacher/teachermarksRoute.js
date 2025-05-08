@@ -5,6 +5,7 @@ const Student = require("../../models/studentModel");
 const Marks = require("../../models/marksschema");
 const mongoose = require('mongoose');
 const { generatePdf, generateExcel, generateClassPdf, generateClassExcel } = require("../../utils/exportgenerator");
+const auth = require("../../middleware/teacherauth");
 
 // Get marks by subject name and exam type
 router.get("/marks-by-subject", async (req, res) => {
@@ -419,7 +420,7 @@ router.get('/export-class-marks', async (req, res) => {
 });
 
 // GET /api/teachermarks/class-marks
-router.get('/class-marks', async (req, res) => {
+router.get('/class-marks', auth, async (req, res) => {
   try {
     const { year, division, examType } = req.query;
     const teacherId = req.teacher._id;
