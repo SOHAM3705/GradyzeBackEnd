@@ -5,24 +5,7 @@ const Notification = require("../../models/notificationmodel");
 const Student = require("../../models/studentModel"); // Student collection
 const { GridFSBucket } = require("mongodb");
 
-// GET student details by ID
-router.get("/:studentId", async (req, res) => {
-  try {
-    const student = await Student.findById(req.params.studentId)
-      .select("year division adminId") // Only return these fields
-      .lean();
-
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
-
-    res.json(student);
-  } catch (err) {
-    console.error("Error fetching student:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
+// GET notifications route (moved before the parameterized route)
 router.get("/notifications", async (req, res) => {
   try {
     const { userRole, adminId, year, division } = req.query;
@@ -72,6 +55,29 @@ router.get("/notifications", async (req, res) => {
     res.json(notifications);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// GET student details by ID (now this won't catch "/notifications")
+router.get("/:studentId", async (req, res) => {
+  try {
+    // Optional: Add validation for studentId
+    if (!mongoose.Types.ObjectId.isValid(req.params.studentId)) {
+      return res.status(400).json({ error: "Invalid student ID" });
+    }
+
+    const student = await Student.findById(req.params.studentId)
+      .select("year division adminId") // Only return these fields
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    res.json(student);
+  } catch (err) {
+    console.error("Error fetching student:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
