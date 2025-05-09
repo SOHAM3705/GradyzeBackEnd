@@ -19,7 +19,7 @@ const studentmanagementRoute = require("./api/teacher/studentmanagnmentRoute"); 
 const student = require("./api/student/studentRoue"); // Assuming you create the student management route
 const teachermarks = require("./api/teacher/teachermarksRoute"); // Assuming you create the teacher marks route
 const adminsettingRoute = require("./api/admin/adminsettingRoute");
-//const adminStudentManagement = require("./api/admin/adminStudentManagement");
+const adminStudentManagement = require("./api/admin/adminStudentManagement");
 const teacherSettingRoute = require("./api/teacher/teachersettingRoute");
 const studentSettingRoute = require("./api/student/studentsettingRoute");
 const studentnotificationRoute = require("./api/student/studentnotificationRoute");
@@ -160,7 +160,7 @@ web.use("/api/studentsetting", studentSettingRoute);
 web.use("/api/studentnotification",studentnotificationRoute);
 web.use("/api/studentResult",studentResult);
 web.use("/api/auth", googleauthRoutes);
-//web.use("/api/admin",adminStudentManagement);
+web.use("/api/admin", adminStudentManagement);
 
 
 // Serve static files from React's build folder
