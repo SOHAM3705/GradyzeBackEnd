@@ -160,7 +160,7 @@ web.use("/api/studentsetting", studentSettingRoute);
 web.use("/api/studentnotification",studentnotificationRoute);
 web.use("/api/studentResult",studentResult);
 web.use("/api/auth", googleauthRoutes);
-web.use("/api/admin",adminStudentManagement);
+//web.use("/api/admin",adminStudentManagement);
 
 
 // Serve static files from React's build folder
