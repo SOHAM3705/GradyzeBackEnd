@@ -45,8 +45,8 @@ router.get("/notifications", async (req, res) => {
       audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
       ...(year && division && {
         $or: [
-          { "teacherData.year": year },
-          { "teacherData.division": division }
+          { "teacherData.assignedClass.year": year },
+          { "teacherData.assignedClass.division": division }
         ]
       })
     };
