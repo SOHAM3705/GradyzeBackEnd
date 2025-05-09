@@ -4,32 +4,62 @@ const router = express.Router();
 const Notification = require("../../models/notificationmodel");
 const { GridFSBucket } = require("mongodb");
 
-// ✅ Fetch notifications only for students (including file IDs)
+// Updated notifications route
 router.get("/notifications", async (req, res) => {
-    console.log("✅ Notifications API hit!"); // Debugging
+    console.log("✅ Notifications API hit!");
     try {
-        const notifications = await Notification.find({
-            audience: { $in: ["students", "all"] }
-        }).sort({ createdAt: -1 });
-
-        if (!Array.isArray(notifications)) {
-            return res.json([]);
-        }
-
-        res.json(
-            notifications.map((notif) => ({
-                _id: notif._id,
-                message: notif.message,
-                audience: notif.audience,
-                fileId: notif.fileId || null,
-                createdAt: notif.createdAt,
-            }))
-        );
+      const { userRole, adminId, year, division } = req.query;
+  
+      // Base query for admin-created notifications
+      const adminNotificationsQuery = {
+        adminId,
+        audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
+      };
+  
+      // Additional query for teacher-created notifications
+      const teacherNotificationsQuery = {
+        teacherId: { $exists: true },
+        audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
+        $or: [
+          { 'teacherData.year': year },
+          { 'teacherData.division': division }
+        ]
+      };
+  
+      // Aggregate to join with teacher data for teacher-created notifications
+      const notifications = await Notification.aggregate([
+        {
+          $lookup: {
+            from: "teachers",
+            localField: "teacherId",
+            foreignField: "_id",
+            as: "teacherData"
+          }
+        },
+        { $unwind: { path: "$teacherData", preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            $or: [
+              adminNotificationsQuery,
+              { 
+                $and: [
+                  { teacherId: { $exists: true } },
+                  { "teacherData.adminId": mongoose.Types.ObjectId(adminId) },
+                  teacherNotificationsQuery
+                ]
+              }
+            ]
+          }
+        },
+        { $sort: { createdAt: -1 } }
+      ]);
+  
+      res.json(notifications);
     } catch (err) {
-        console.error("❌ Error fetching student notifications:", err);
-        res.status(500).json({ error: "Failed to fetch notifications" });
+      console.error("❌ Error fetching notifications:", err);
+      res.status(500).json({ error: "Failed to fetch notifications" });
     }
-});
+  });
 
 // ✅ Download a file from GridFS (if attached to a notification)
 router.get("/files/:fileId", async (req, res) => {
