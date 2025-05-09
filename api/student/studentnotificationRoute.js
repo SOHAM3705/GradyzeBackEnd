@@ -4,15 +4,18 @@ const router = express.Router();
 const Notification = require("../../models/notificationmodel");
 const { GridFSBucket } = require("mongodb");
 
-// Updated notifications route
 router.get("/notifications", async (req, res) => {
     console.log("✅ Notifications API hit!");
     try {
       const { userRole, adminId, year, division } = req.query;
   
+      if (!adminId) {
+        return res.status(400).json({ error: "adminId is required" });
+      }
+  
       // Base query for admin-created notifications
       const adminNotificationsQuery = {
-        adminId,
+        adminId: new mongoose.Types.ObjectId(adminId),
         audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
       };
   
@@ -26,7 +29,7 @@ router.get("/notifications", async (req, res) => {
         ]
       };
   
-      // Aggregate to join with teacher data for teacher-created notifications
+      // Aggregate to join with teacher data
       const notifications = await Notification.aggregate([
         {
           $lookup: {
@@ -44,14 +47,28 @@ router.get("/notifications", async (req, res) => {
               { 
                 $and: [
                   { teacherId: { $exists: true } },
-                  { "teacherData.adminId": mongoose.Types.ObjectId(adminId) },
+                  { "teacherData.adminId": new mongoose.Types.ObjectId(adminId) },
                   teacherNotificationsQuery
                 ]
               }
             ]
           }
         },
-        { $sort: { createdAt: -1 } }
+        { $sort: { createdAt: -1 } },
+        {
+          $project: {
+            _id: 1,
+            message: 1,
+            audience: 1,
+            fileId: 1,
+            createdAt: 1,
+            adminId: 1,
+            teacherId: 1,
+            "teacherData.name": 1,
+            "teacherData.year": 1,
+            "teacherData.division": 1
+          }
+        }
       ]);
   
       res.json(notifications);
