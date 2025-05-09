@@ -5,7 +5,6 @@ const Notification = require("../../models/notificationmodel");
 const Student = require("../../models/studentModel"); // Student collection
 const { GridFSBucket } = require("mongodb");
 
-// GET notifications route (moved before the parameterized route)
 router.get("/notifications", async (req, res) => {
   try {
     const { userRole, adminId, year, division } = req.query;
@@ -14,25 +13,6 @@ router.get("/notifications", async (req, res) => {
     if (!adminId) {
       return res.status(400).json({ error: "adminId is required" });
     }
-
-    // Base query for admin-created notifications
-    const adminNotifications = {
-      adminId: new mongoose.Types.ObjectId(adminId),
-      audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
-    };
-
-    // For teacher-created notifications, match year/division
-    const teacherNotifications = {
-      teacherId: { $exists: true },
-      "teacherData.adminId": new mongoose.Types.ObjectId(adminId),
-      audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
-      ...(year && division && {
-        $or: [
-          { "teacherData.assignedClass.year": year },
-          { "teacherData.assignedClass.division": division }
-        ]
-      })
-    };
 
     const notifications = await Notification.aggregate([
       {
@@ -46,14 +26,69 @@ router.get("/notifications", async (req, res) => {
       { $unwind: { path: "$teacherData", preserveNullAndEmptyArrays: true } },
       {
         $match: {
-          $or: [adminNotifications, teacherNotifications]
+          $or: [
+            // Admin-created notifications
+            {
+              adminId: new mongoose.Types.ObjectId(adminId),
+              teacherId: { $exists: false },
+              audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
+            },
+            // Teacher-created notifications
+            {
+              teacherId: { $exists: true },
+              "teacherData.adminId": new mongoose.Types.ObjectId(adminId),
+              audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
+              ...(year && division && {
+                $or: [
+                  { "teacherData.assignedClass.year": year },
+                  { "teacherData.assignedClass.division": division }
+                ]
+              })
+            }
+          ]
         }
       },
-      { $sort: { createdAt: -1 } }
+      {
+        $addFields: {
+          // Add a field to identify the source
+          sourceType: {
+            $cond: [
+              { $ifNull: ["$teacherId", false] },
+              "teacher",
+              "admin"
+            ]
+          },
+          // Include teacher name if available
+          teacherName: {
+            $cond: [
+              { $ifNull: ["$teacherData", false] },
+              { $concat: ["$teacherData.firstName", " ", "$teacherData.lastName"] },
+              null
+            ]
+          }
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $project: {
+          // Include all notification fields
+          title: 1,
+          message: 1,
+          audience: 1,
+          fileId: 1,
+          createdAt: 1,
+          // Include the source information
+          sourceType: 1,
+          teacherName: 1,
+          // Include admin info if needed
+          adminId: 1
+        }
+      }
     ]);
 
     res.json(notifications);
   } catch (err) {
+    console.error("Error fetching notifications:", err);
     res.status(500).json({ error: "Failed to fetch notifications" });
   }
 });
