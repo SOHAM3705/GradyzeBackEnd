@@ -2,81 +2,78 @@ const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 const Notification = require("../../models/notificationmodel");
+const Student = require("../../models/studentModel"); // Student collection
 const { GridFSBucket } = require("mongodb");
 
-router.get("/notifications", async (req, res) => {
-    console.log("✅ Notifications API hit!");
-    try {
-      const { userRole, adminId, year, division } = req.query;
-  
-      if (!adminId) {
-        return res.status(400).json({ error: "adminId is required" });
-      }
-  
-      // Base query for admin-created notifications
-      const adminNotificationsQuery = {
-        adminId: new mongoose.Types.ObjectId(adminId),
-        audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
-      };
-  
-      // Additional query for teacher-created notifications
-      const teacherNotificationsQuery = {
-        teacherId: { $exists: true },
-        audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
-        $or: [
-          { 'teacherData.year': year },
-          { 'teacherData.division': division }
-        ]
-      };
-  
-      // Aggregate to join with teacher data
-      const notifications = await Notification.aggregate([
-        {
-          $lookup: {
-            from: "teachers",
-            localField: "teacherId",
-            foreignField: "_id",
-            as: "teacherData"
-          }
-        },
-        { $unwind: { path: "$teacherData", preserveNullAndEmptyArrays: true } },
-        {
-          $match: {
-            $or: [
-              adminNotificationsQuery,
-              { 
-                $and: [
-                  { teacherId: { $exists: true } },
-                  { "teacherData.adminId": new mongoose.Types.ObjectId(adminId) },
-                  teacherNotificationsQuery
-                ]
-              }
-            ]
-          }
-        },
-        { $sort: { createdAt: -1 } },
-        {
-          $project: {
-            _id: 1,
-            message: 1,
-            audience: 1,
-            fileId: 1,
-            createdAt: 1,
-            adminId: 1,
-            teacherId: 1,
-            "teacherData.name": 1,
-            "teacherData.year": 1,
-            "teacherData.division": 1
-          }
-        }
-      ]);
-  
-      res.json(notifications);
-    } catch (err) {
-      console.error("❌ Error fetching notifications:", err);
-      res.status(500).json({ error: "Failed to fetch notifications" });
+// GET student details by ID
+router.get("/:studentId", async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.studentId)
+      .select("year division adminId") // Only return these fields
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({ error: "Student not found" });
     }
-  });
+
+    res.json(student);
+  } catch (err) {
+    console.error("Error fetching student:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/notifications", async (req, res) => {
+  try {
+    const { userRole, adminId, year, division } = req.query;
+
+    // Validate adminId (required for all roles)
+    if (!adminId) {
+      return res.status(400).json({ error: "adminId is required" });
+    }
+
+    // Base query for admin-created notifications
+    const adminNotifications = {
+      adminId: new mongoose.Types.ObjectId(adminId),
+      audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
+    };
+
+    // For teacher-created notifications, match year/division
+    const teacherNotifications = {
+      teacherId: { $exists: true },
+      "teacherData.adminId": new mongoose.Types.ObjectId(adminId),
+      audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
+      ...(year && division && {
+        $or: [
+          { "teacherData.year": year },
+          { "teacherData.division": division }
+        ]
+      })
+    };
+
+    const notifications = await Notification.aggregate([
+      {
+        $lookup: {
+          from: "teachers",
+          localField: "teacherId",
+          foreignField: "_id",
+          as: "teacherData"
+        }
+      },
+      { $unwind: { path: "$teacherData", preserveNullAndEmptyArrays: true } },
+      {
+        $match: {
+          $or: [adminNotifications, teacherNotifications]
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
 
 // ✅ Download a file from GridFS (if attached to a notification)
 router.get("/files/:fileId", async (req, res) => {
