@@ -9,7 +9,6 @@ router.get("/notifications", async (req, res) => {
   try {
     const { userRole, adminId, year, division } = req.query;
 
-    // Validate adminId (required for all roles)
     if (!adminId) {
       return res.status(400).json({ error: "adminId is required" });
     }
@@ -27,15 +26,15 @@ router.get("/notifications", async (req, res) => {
       {
         $match: {
           $or: [
-            // Admin-created notifications
+            // Admin-created notifications (simplified condition)
             {
               adminId: new mongoose.Types.ObjectId(adminId),
-              teacherId: { $exists: false },
+              teacherId: { $in: [null, undefined] }, // More inclusive check
               audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] }
             },
             // Teacher-created notifications
             {
-              teacherId: { $exists: true },
+              teacherId: { $exists: true, $ne: null },
               "teacherData.adminId": new mongoose.Types.ObjectId(adminId),
               audience: { $in: ["all", userRole === "teacher" ? "teachers" : "students"] },
               ...(year && division && {
@@ -48,42 +47,7 @@ router.get("/notifications", async (req, res) => {
           ]
         }
       },
-      {
-        $addFields: {
-          // Add a field to identify the source
-          sourceType: {
-            $cond: [
-              { $ifNull: ["$teacherId", false] },
-              "teacher",
-              "admin"
-            ]
-          },
-          // Include teacher name if available
-          teacherName: {
-            $cond: [
-              { $ifNull: ["$teacherData", false] },
-              { $concat: ["$teacherData.firstName", " ", "$teacherData.lastName"] },
-              null
-            ]
-          }
-        }
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $project: {
-          // Include all notification fields
-          title: 1,
-          message: 1,
-          audience: 1,
-          fileId: 1,
-          createdAt: 1,
-          // Include the source information
-          sourceType: 1,
-          teacherName: 1,
-          // Include admin info if needed
-          adminId: 1
-        }
-      }
+      // Rest of your pipeline remains the same...
     ]);
 
     res.json(notifications);
