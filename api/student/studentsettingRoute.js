@@ -24,25 +24,72 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-/* ✅ Fetch Profile (Specific to Logged-in User) */
+/* ✅ Fetch Profile */
 router.get("/profile", verifyToken, async (req, res) => {
     try {
-        const profile = await User.findOne({ email: req.adminEmail }).lean();
+        const profile = await Student.findOne({ email: req.studentEmail }).lean();
         if (!profile) {
-            console.error("❌ Profile not found for email:", req.adminEmail);
             return res.status(404).json({ error: "Profile not found" });
         }
 
-        console.log("✅ Fetched Profile for:", req.adminEmail);
-
         const profilePhotoUrl = profile.profilePhotoId
             ? `/api/studentsetting/profile/photo/${profile.profilePhotoId}`
-            : "/profile.png"; // Default profile picture
+            : "/profile.png";
 
         res.json({ ...profile, profilePhotoUrl });
     } catch (err) {
-        console.error("❌ Error fetching profile:", err);
         res.status(500).json({ error: "Failed to fetch profile" });
+    }
+});
+
+/* ✅ Upload Profile Picture */
+router.post("/profile/upload", verifyToken, upload.single("file"), async (req, res) => {
+    try {
+        const email = req.studentEmail; // Get from token instead of body
+        if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+        const db = mongoose.connection.db;
+        const bucket = new GridFSBucket(db, { bucketName: "studentProfilePhotos" }); // Different bucket
+
+        const uploadStream = bucket.openUploadStream(req.file.originalname, {
+            contentType: req.file.mimetype,
+        });
+
+        fs.createReadStream(req.file.path).pipe(uploadStream);
+
+        uploadStream.on("finish", async () => {
+            fs.unlinkSync(req.file.path);
+            await Student.findOneAndUpdate(
+                { email },
+                { profilePhotoId: uploadStream.id },
+                { new: true }
+            );
+            res.json({ 
+                success: true, 
+                fileID: uploadStream.id, 
+                profilePhotoUrl: `/api/studentsetting/profile/photo/${uploadStream.id}`
+            });
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to upload profile photo" });
+    }
+});
+
+/* ✅ Fetch Profile Picture */
+router.get("/profile/photo/:fileId", async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+        const bucket = new GridFSBucket(db, { bucketName: "studentProfilePhotos" }); // Consistent bucket
+        
+        const fileId = new mongoose.Types.ObjectId(req.params.fileId);
+        const [file] = await bucket.find({ _id: fileId }).toArray();
+        
+        if (!file) return res.status(404).json({ error: "File not found" });
+        
+        res.set("Content-Type", file.contentType);
+        bucket.openDownloadStream(fileId).pipe(res);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch profile photo" });
     }
 });
 
@@ -89,75 +136,7 @@ router.post("/update-name-email", verifyToken, async (req, res) => {
 });
 
 
-/* ✅ Upload Profile Picture */
-router.post("/profile/upload", upload.single("file"), async (req, res) => {
-    try {
-        const { email } = req.body;
-        if (!email) return res.status(400).json({ error: "Email is required" });
-        if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-        const db = mongoose.connection.db;
-        const bucket = new GridFSBucket(db, { bucketName: "profilePhotos" });
-
-        const uploadStream = bucket.openUploadStream(req.file.originalname, {
-            contentType: req.file.mimetype,
-        });
-
-        const fileStream = fs.createReadStream(req.file.path);
-        fileStream.pipe(uploadStream);
-
-        uploadStream.on("finish", async () => {
-            fs.unlinkSync(req.file.path);
-
-            const updatedUser = await User.findOneAndUpdate(
-                { email },
-                { profilePhotoId: uploadStream.id },
-                { new: true }
-            );
-
-            if (!updatedUser) return res.status(404).json({ error: "User not found" });
-
-            console.log("✅ Profile photo uploaded and updated in DB:", updatedUser);
-            res.json({ success: true, fileID: uploadStream.id, profilePhotoUrl: `/api/admin/profile/photo/${uploadStream.id}` });
-        });
-
-    } catch (err) {
-        console.error("❌ Error uploading profile photo:", err);
-        res.status(500).json({ error: "Failed to upload profile photo" });
-    }
-});
-
-/* ✅ Fetch Profile Picture */
-router.get("/profile/photo/:fileId", async (req, res) => {
-    try {
-        const { fileId } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(fileId)) {
-            return res.status(400).json({ error: "Invalid file ID" });
-        }
-
-        const db = mongoose.connection.db;
-        const bucket = new GridFSBucket(db, { bucketName: "profilePhotos" });
-
-        const fileCursor = await bucket.find({ _id: new mongoose.Types.ObjectId(fileId) }).toArray();
-        if (!fileCursor || fileCursor.length === 0) {
-            return res.status(404).json({ error: "File not found" });
-        }
-
-        const file = fileCursor[0];
-        if (!file.contentType) {
-            return res.status(500).json({ error: "File content type is missing" });
-        }
-
-        console.log(`✅ Fetching Profile Photo: ${fileId} (Type: ${file.contentType})`);
-
-        res.setHeader("Content-Type", file.contentType);
-        bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId)).pipe(res);
-
-    } catch (err) {
-        console.error("❌ Error fetching profile photo:", err);
-        res.status(500).json({ error: "Failed to fetch profile photo" });
-    }
-});
 
 /* ✅ Change Password */
 router.post("/change-password", verifyToken, async (req, res) => {
