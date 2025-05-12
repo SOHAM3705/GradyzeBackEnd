@@ -20,6 +20,7 @@ const student = require("./api/student/studentRoue"); // Assuming you create the
 const teachermarks = require("./api/teacher/teachermarksRoute"); // Assuming you create the teacher marks route
 const adminsettingRoute = require("./api/admin/adminsettingRoute");
 const adminStudentManagement = require("./api/admin/adminStudentManagementRoute");
+const adminStudentMarks = require("./api/admin/adminStudentMarksRoute")
 const teacherSettingRoute = require("./api/teacher/teachersettingRoute");
 const studentSettingRoute = require("./api/student/studentsettingRoute");
 const studentnotificationRoute = require("./api/student/studentnotificationRoute");
@@ -29,6 +30,7 @@ const googleauthRoutes = require("./api/Google/googleauth");
 const web = express();
 const session = require("express-session");
 const passport = require("./config/passport");
+const teacherTestRoute = require("./api/teacher/teachertest");
 
 
 // Importing required modules
@@ -161,7 +163,8 @@ web.use("/api/studentnotification",studentnotificationRoute);
 web.use("/api/studentResult",studentResult);
 web.use("/api/auth", googleauthRoutes);
 web.use("/api/admin", adminStudentManagement);
-
+web.use("/api/admin",adminStudentMarks);
+web.use("/api/teacher", teacherTestRoute);
 
 // Serve static files from React's build folder
 const reactBuildPath = path.join(__dirname, '../FrontEnd/dist');
