@@ -19,12 +19,13 @@ router.get('/fetchstudents', async (req, res) => {
       }
   
       // Fetch the teacher associated with the given department, year, and division
-      const teacher = await Teacher.findOne({
-        adminId: mongoose.Types.ObjectId(adminId),
-        department: department,
-        'assignedClass.year': year,
-        'assignedClass.division': division
-      });
+    const teacher = await Teacher.findOne({
+  adminId: new mongoose.Types.ObjectId(adminId),
+  department: department,
+  'assignedClass.year': year,
+  'assignedClass.division': division
+});
+
   
       if (!teacher) {
         return res.status(404).json({ error: 'No teacher found for this class' });
