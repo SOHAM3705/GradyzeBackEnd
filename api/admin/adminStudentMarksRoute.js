@@ -8,7 +8,7 @@ const { GridFSBucket } = require('mongodb');
 const Student = require("../../models/studentModel"); 
 const Teacher = require("../../models/teacheraccount");
 const Admin = require("../../models/useradmin");
-const TeacherMarks = require("../../models.marksschema");
+const TeacherMarks = require("../../models/marksschema");
 
 router.get('/fetchmarks', async (req, res) => {
   try {
