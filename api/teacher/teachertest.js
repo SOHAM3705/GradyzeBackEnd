@@ -4,7 +4,7 @@ const Test = require('../../models/Test');
 const { check, validationResult } = require('express-validator');
 const auth = require('../../middleware/testauth');
 
-router.get('/teacher/me', auth, async (req, res) => {
+router.get('/teacher/me', async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.user.id)
       .populate('subjects')
