@@ -3,7 +3,7 @@ const router = express.Router();
 const Test = require('../../models/Test');
 const { check, validationResult } = require('express-validator');
 const auth = require('../../middleware/testauth');
-
+const Teacher = require('../../models/teacheraccount');
 router.get('/teacher/me', auth, async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.user.id)
