@@ -9,7 +9,6 @@ const Student = require("../../models/studentModel");
 const Teacher = require("../../models/teacheraccount");
 const Admin = require("../../models/useradmin");
 const TeacherMarks = require("../../models/marksschema");
-
 router.get('/fetchmarks', async (req, res) => {
   try {
     const { adminId, department, year, division, examType } = req.query;
@@ -34,7 +33,7 @@ router.get('/fetchmarks', async (req, res) => {
       adminId,
       year,
       division
-    }).select('rollNo name email');
+    }).select('rollNo name');
 
     if (students.length === 0) {
       return res.status(404).json({ error: 'No students found for this class' });
@@ -45,20 +44,12 @@ router.get('/fetchmarks', async (req, res) => {
         studentId: student._id,
         examType
       });
-
-      let subjectMarks = null;
-
-      if (marksDoc && marksDoc.exams) {
-        subjectMarks = marksDoc.exams.map((exam) => ({
-          subjectName: exam.subjectName,
-          total: exam.marksObtained.total
-        }));
-      }
-
+    
+    
       return {
         rollNo: student.rollNo,
         name: student.name,
-        marks: subjectMarks
+        marks: student.overallMarks
       };
     });
 
@@ -70,6 +61,7 @@ router.get('/fetchmarks', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 module.exports = router;
