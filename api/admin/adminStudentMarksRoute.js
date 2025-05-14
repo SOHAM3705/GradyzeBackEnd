@@ -49,7 +49,7 @@ router.get('/fetchmarks', async (req, res) => {
       return {
         rollNo: student.rollNo,
         name: student.name,
-        marks: student.overallMarks
+        marks: marksDoc?.overallMarks || 0
       };
     });
 
