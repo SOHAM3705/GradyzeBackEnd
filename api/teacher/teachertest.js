@@ -5,7 +5,7 @@ const { check, validationResult } = require('express-validator');
 const auth = require('../../middleware/testauth');
 const Teacher = require('../../models/teacheraccount');
 
-router.get('/teacher/me', testAuth, async (req, res) => {
+router.get('/teacher/me', auth, async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.teacherId); // ✅ This will work
     if (!teacher) return res.status(404).json({ error: "Teacher not found" });
