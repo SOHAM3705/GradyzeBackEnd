@@ -41,7 +41,7 @@ router.get('/fetchmarks', async (req, res) => {
 
    const marksPromises = students.map(async (student) => {
   const marksDoc = await TeacherMarks.findOne({
-    studentId: student._id,
+    studentId: new mongoose.Types.ObjectId(student._id),
     examType
   });
 
@@ -51,6 +51,7 @@ router.get('/fetchmarks', async (req, res) => {
     marks: marksDoc?.overallMarks || 0
   };
 });
+
 
 
     const marksData = await Promise.all(marksPromises);
