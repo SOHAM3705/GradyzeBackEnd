@@ -39,20 +39,19 @@ router.get('/fetchmarks', async (req, res) => {
       return res.status(404).json({ error: 'No students found for this class' });
     }
 
-    const marksPromises = students.map(async (student) => {
-      const marksDoc = await TeacherMarks.findOne({
-        studentId: student._id,
-        examType,
-        overallMarks
-      });
-    
-    
-      return {
-        rollNo: student.rollNo,
-        name: student.name,
-        marks: marksDoc?.overallMarks || 0
-      };
-    });
+   const marksPromises = students.map(async (student) => {
+  const marksDoc = await TeacherMarks.findOne({
+    studentId: student._id,
+    examType
+  });
+
+  return {
+    rollNo: student.rollNo,
+    name: student.name,
+    marks: marksDoc?.overallMarks || 0
+  };
+});
+
 
     const marksData = await Promise.all(marksPromises);
 
