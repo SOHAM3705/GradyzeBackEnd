@@ -19,7 +19,6 @@ router.get('/teacher/me', auth, async (req, res) => {
 
 
 
-// Create a new test (protected route)
 router.post('/create-test', auth, [
   check('title', 'Title is required').not().isEmpty(),
   check('questions', 'At least one question is required').isArray({ min: 1 }),
@@ -32,15 +31,19 @@ router.post('/create-test', auth, [
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { title, questions, duration } = req.body;
+  const { title, questions, testType, year, division, subjectName, semester } = req.body;
   
   try {
-    const newTest = await Test.create({ 
-      title, 
-      teacherId: req.teacherId, 
+    const testData = {
+      title,
+      teacherId: req.teacherId,
       questions,
-      duration
-    });
+      testType,
+      ...(testType === 'class' && { year, division }),
+      ...(testType === 'subject' && { subjectName, year, semester, division })
+    };
+
+    const newTest = await Test.create(testData);
     
     const testLink = `${process.env.BASE_URL}/test/${newTest._id}`;
     res.status(201).json({ 
