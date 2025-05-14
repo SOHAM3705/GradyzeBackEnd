@@ -1,3 +1,15 @@
+const express = require('express');
+const multer = require("multer");
+const mongoose = require('mongoose');
+const router = express.Router();
+const path = require('path');
+const fs = require('fs');
+const { GridFSBucket } = require('mongodb');
+const Student = require("../../models/studentModel"); 
+const Teacher = require("../../models/teacheraccount");
+const Admin = require("../../models/useradmin");
+const TeacherMarks = require("../../models/marksschema");
+
 router.get('/fetchmarks', async (req, res) => {
   try {
     const { adminId, department, year, division, examType } = req.query;
@@ -58,3 +70,6 @@ router.get('/fetchmarks', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+module.exports = router;
