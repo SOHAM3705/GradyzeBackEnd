@@ -37,7 +37,7 @@ router.post('/create-test', auth, [
   try {
     const newTest = await Test.create({ 
       title, 
-      teacherId: req.user.id, 
+      teacherId: req.user.teacherId, 
       questions,
       duration
     });
@@ -59,7 +59,7 @@ router.get('/test/:id', auth, async (req, res) => {
   try {
     const test = await Test.findOne({
       _id: req.params.id,
-      teacherId: req.user.id
+      teacherId: req.user.teacherId
     });
     
     if (!test) {
@@ -90,7 +90,7 @@ router.put('/update-test/:id', auth, [
   try {
     const test = await Test.findOne({
       _id: req.params.id,
-      teacherId: req.user.id
+      teacherId: req.user.teacherId
     });
 
     if (!test) {
@@ -115,7 +115,7 @@ router.put('/update-test/:id', auth, [
 router.get('/my-tests', auth, async (req, res) => {
   try {
     const { status } = req.query;
-    const filter = { teacherId: req.user.id };
+    const filter = { teacherId: req.user.teacherId };
     
     if (status) {
       filter.status = status;
@@ -137,7 +137,7 @@ router.delete('/delete-test/:id', auth, async (req, res) => {
   try {
     const test = await Test.findOneAndDelete({
       _id: req.params.id,
-      teacherId: req.user.id
+      teacherId: req.user.teacherId
     });
 
     if (!test) {
@@ -156,7 +156,7 @@ router.get('/test-with-answers/:id', auth, async (req, res) => {
   try {
     const test = await Test.findOne({
       _id: req.params.id,
-      teacherId: req.user.id
+      teacherId: req.user.teacherId
     });
 
     if (!test) {
@@ -175,7 +175,7 @@ router.patch('/publish-test/:id', auth, async (req, res) => {
   try {
     const test = await Test.findOne({
       _id: req.params.id,
-      teacherId: req.user.id
+      teacherId: req.user.teacherId
     });
 
     if (!test) {
