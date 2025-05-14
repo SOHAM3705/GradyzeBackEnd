@@ -9,6 +9,7 @@ const Student = require("../../models/studentModel");
 const Teacher = require("../../models/teacheraccount");
 const Admin = require("../../models/useradmin");
 const TeacherMarks = require("../../models/marksschema");
+
 router.get('/fetchmarks', async (req, res) => {
   try {
     const { adminId, department, year, division, examType } = req.query;
@@ -17,52 +18,66 @@ router.get('/fetchmarks', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
+    // Find teacher with proper population
     const teacher = await Teacher.findOne({
       adminId: new mongoose.Types.ObjectId(adminId),
       department,
       'assignedClass.year': year,
       'assignedClass.division': division
-    });
+    }).lean();
 
     if (!teacher) {
       return res.status(404).json({ error: 'No teacher found for this class' });
     }
 
+    // Find students with proper filtering
     const students = await Student.find({ 
-      teacherId: teacher._id, 
-      adminId,
+      adminId: new mongoose.Types.ObjectId(adminId),
       year,
       division
-    }).select('rollNo name');
+    }).select('rollNo name _id').lean();
 
     if (students.length === 0) {
       return res.status(404).json({ error: 'No students found for this class' });
     }
 
-   const marksPromises = students.map(async (student) => {
-  const marksDoc = await TeacherMarks.findOne({
-    studentId: new mongoose.Types.ObjectId(student._id),
-    examType
-  });
+    // Get marks with proper population
+    const marksData = await TeacherMarks.aggregate([
+      {
+        $match: {
+          studentId: { $in: students.map(s => s._id) },
+          examType,
+          year
+        }
+      },
+      {
+        $project: {
+          studentId: 1,
+          overallMarks: 1,
+          examType: 1,
+          year: 1,
+          exams: 1
+        }
+      }
+    ]);
 
-  return {
-    rollNo: student.rollNo,
-    name: student.name,
-    marks: marksDoc?.overallMarks || 0
-  };
-});
+    // Map results to students
+    const result = students.map(student => {
+      const studentMarks = marksData.find(m => m.studentId.equals(student._id));
+      return {
+        rollNo: student.rollNo,
+        name: student.name,
+        marks: studentMarks?.overallMarks || 0,
+        exams: studentMarks?.exams || []
+      };
+    });
 
-
-
-    const marksData = await Promise.all(marksPromises);
-
-    res.status(200).json({ marksData });
+    res.status(200).json({ marksData: result });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error fetching marks:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
-
 
 
 module.exports = router;
