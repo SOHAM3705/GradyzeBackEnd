@@ -4,6 +4,9 @@ const marksSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
   examType: { type: String, required: true, enum: ['unit-test', 're-unit-test', 'prelim', 're-prelim'] },
   year: { type: String, required: true },
+
+  overallMarks: { type: Number, default: 0 }, // Will be auto-calculated
+
   exams: [
     {
       subjectName: { type: String, required: true },
@@ -25,5 +28,14 @@ const marksSchema = new mongoose.Schema({
     }
   ]
 }, { timestamps: true });
+
+
+// 🧠 Pre-save hook to compute overallMarks
+marksSchema.pre('save', function (next) {
+  this.overallMarks = this.exams.reduce((sum, exam) => {
+    return sum + (exam?.marksObtained?.total || 0);
+  }, 0);
+  next();
+});
 
 module.exports = mongoose.model("TeacherMarks", marksSchema);
