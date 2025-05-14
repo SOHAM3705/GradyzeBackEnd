@@ -42,7 +42,8 @@ router.get('/fetchmarks', async (req, res) => {
     const marksPromises = students.map(async (student) => {
       const marksDoc = await TeacherMarks.findOne({
         studentId: student._id,
-        examType
+        examType,
+        overallMarks
       });
     
     
