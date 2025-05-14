@@ -5,17 +5,18 @@ const { check, validationResult } = require('express-validator');
 const auth = require('../../middleware/testauth');
 const Teacher = require('../../models/teacheraccount');
 
-router.get('/teacher/me', auth, async (req, res) => {
+router.get('/teacher/me', testAuth, async (req, res) => {
   try {
-    const teacher = await Teacher.findById(req.user.id);
+    const teacher = await Teacher.findById(req.teacherId); // ✅ This will work
     if (!teacher) return res.status(404).json({ error: "Teacher not found" });
 
-    res.json(teacher); // This includes subjects and assignedClass already
+    res.json(teacher); // contains assignedClass and subjects already
   } catch (err) {
-    console.error("Error fetching teacher:", err); // Log the actual error
+    console.error("Error fetching teacher:", err);
     res.status(500).json({ error: "Error fetching teacher data" });
   }
 });
+
 
 
 // Create a new test (protected route)
