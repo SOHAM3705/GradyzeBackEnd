@@ -363,7 +363,7 @@ router.get('/export-marks', async (req, res) => {
     const marks = await Marks.find({
       'exams.subjectName': subjectName,
       examType,
-      'exams.teacherId': req.teacher._id
+      'exams.teacherId': req.teacherId
     }).populate('studentId');
     
     if (exportType === 'pdf') {
