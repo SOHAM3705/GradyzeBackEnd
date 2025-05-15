@@ -113,7 +113,9 @@ const generateClassPdf = (students, subjects, marksData) => {
     // Subject marks
     let totalMarks = 0;
     subjects.forEach((subject, i) => {
-      const studentMarks = marksData.find(m => m.studentId.equals(student._id));
+      //const studentMarks = marksData.find(m => m.studentId.equals(student._id));
+      const studentMarks = marksData.find(m => m.studentId._id.toString() === student._id.toString());
+
       const subjectMarks = studentMarks?.exams?.filter(e => e.subjectName === subject.name) || [];
       const subjectTotal = subjectMarks.reduce((sum, exam) => sum + (exam.marksObtained?.total || 0), 0);
       totalMarks += subjectTotal;
@@ -189,7 +191,9 @@ const generateExcel = (marks) => {
       let totalMarks = 0;
       
       subjects.forEach(subject => {
-        const studentMarks = marksData.find(m => m.studentId.equals(student._id));
+        const studentMarks = marksData.find(m => m.studentId._id.toString() === student._id.toString());
+
+        //const studentMarks = marksData.find(m => m.studentId.equals(student._id));
         const subjectMarks = studentMarks?.exams?.filter(e => e.subjectName === subject.name) || [];
         const subjectTotal = subjectMarks.reduce((sum, exam) => sum + (exam.marksObtained?.total || 0), 0);
         totalMarks += subjectTotal;
